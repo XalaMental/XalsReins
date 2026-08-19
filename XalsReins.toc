@@ -1,0 +1,30 @@
+## Interface: 120100
+## Title: Xal's Reins
+## Version: @project-version@
+## Notes: A mount tracker that shows every mount in the game and how to get it.
+## Author: XalaMental
+## X-License: All Rights Reserved
+## X-Curse-Project-ID: 1657725
+## SavedVariables: XalsReinsDB
+## SavedVariablesPerCharacter: XalsReinsCharDB
+## IconTexture: Interface\AddOns\XalsReins\Icon.png
+
+libs\LibStub\LibStub.lua
+libs\CallbackHandler\CallbackHandler-1.0.lua
+libs\LibDataBroker\LibDataBroker-1.1.lua
+libs\LibDBIcon\LibDBIcon-1.0.lua
+
+Bootstrap.lua
+BrandStyle.lua
+VideoLinks.lua
+Unobtainable.lua
+MountSteps.lua
+MountData.lua
+WhatsNew.lua
+Engine.lua
+MainTracker.lua
+MountDetail.lua
+CollectionWindow.lua
+SettingsPanel.lua
+MinimapButton.lua
+ChatCommands.lua
