@@ -1,13 +1,11 @@
 package-as: XalsReins
 
 # Files/folders in the repo that shouldn't end up inside the distributed addon
-# zip - players don't need CI config, git's own housekeeping files, or the
-# screenshots used on the CurseForge/GitHub page.
+# zip - players don't need CI config or git's own housekeeping files.
 ignore:
   - .github
   - .gitignore
   - images
-  - research
   - ArtSource
 
 # Use our hand-maintained, styled changelog as the release changelog on
