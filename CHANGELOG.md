@@ -1,6 +1,6 @@
 # Xal's Reins - Changelog
 
-## 1.0.1 - August 19, 2026
+## 1.0.2 - August 19, 2026
 
 ---
 

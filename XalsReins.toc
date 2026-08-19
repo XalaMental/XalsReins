@@ -1,4 +1,4 @@
-## Interface: 120100
+## Interface: 120100, 120007
 ## Title: Xal's Reins
 ## Version: @project-version@
 ## Notes: A mount tracker that shows every mount in the game and how to get it.
