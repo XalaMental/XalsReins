@@ -32,6 +32,7 @@ read_globals = {
     "C_Calendar",
     "C_DateAndTime",
     "GetTime",
+    "time",
     "C_Item",
     "GetItemCount",
     "GetAchievementInfo",
