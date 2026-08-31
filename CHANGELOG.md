@@ -1,14 +1,19 @@
 # Xal's Reins - Changelog
 
-## 1.0.3 - August 22, 2026
+## 1.1.0 - August 23, 2026
 
 ---
 
-I went all in on this one. Step chains should now cover every mount in the game, all the way back to vanilla - the whole reason I started working backwards through the older expansions in the first place. It's a huge pile of information to dig through by hand, so if you spot a mount that's missing or a step that doesn't look right, please tell me - I'd genuinely rather know. I started this addon for my friends, but I care about it turning into something the wider community can actually rely on too. Thanks for being part of the Xal family.
+Hey Xal fam, I'm back after a nasty bout of being sick, with a few changes for you. Every expansion now has its step chains written up - I might've missed one or two here or there, I'm only human, so let me know if you spot a gap. Also caught one mount I'd missed the first time around: Umbral Ashes.
+
+With everything going on in this game lately, I've been losing track of what I'm working on more than I'd like to admit - so I built something for that too. If you're partway through a mount's step chain, Reins will now pop up a small reminder on login pointing you back at whichever one you were last working on.
+
+Thanks for being part of the Xal family.
 
 ### 🆕 New
 
-- **Step-by-step chains for 625 mounts** - every expansion now, from Classic all the way to Midnight. The quests, reputations, and currencies you need first, each ticking itself off against your character.
+- **Step-by-step chains for 626 mounts** - every expansion now, from Classic all the way to Midnight. The quests, reputations, and currencies you need first, each ticking itself off against your character.
+- **A login reminder** for whichever mount you last made progress on - so a half-finished mount chain never just falls out of your head.
 
 ## 1.0.2 - August 19, 2026
 
