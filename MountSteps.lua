@@ -159,6 +159,13 @@ addonTable.MountSteps = {
         { text = "Earn the achievement \"Midnight Keystone Legend: Season 2\"", achievementID = 62449 },
     },
 
+    ["Umbral Ashes"] = {
+        -- source: https://nether.wowhead.com/tooltip/achievement/63104
+        -- New mount, caught by a /xro new-mounts check (not part of the original research pass).
+        { text = "End Midnight Mythic+ Season 1 with a Mythic+ Rating in the top 1% of all players in your region" },
+        { text = "Earn the achievement \"Umbral Champion: Midnight Season 1\"", achievementID = 63104 },
+    },
+
     -- The six Keystone Myth mounts below all share one unlock and one vendor.
     ["Cerulean Deathwalker"] = {
         -- source: https://www.wowhead.com/guide/midnight/mounts-patch-12-0-5-models-locations
