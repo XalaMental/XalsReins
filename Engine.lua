@@ -30,6 +30,13 @@ function Engine:Init()
     -- rather than something to error on.
     MountData:Build()
 
+    -- Show a reminder for whichever mount's step chain this character most
+    -- recently made progress on (from a PREVIOUS session), then start this
+    -- session's own live tracking so the next login has something fresh to
+    -- show if anything gets finished during play.
+    addonTable.StepReminder:CheckAndShow()
+    addonTable.StepReminder:Start()
+
     -- Trading Post offerings often aren't loaded at PLAYER_LOGIN; retry a few
     -- times rather than permanently treating every Trading Post mount as
     -- unknown for the session.
