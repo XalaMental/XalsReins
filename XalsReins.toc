@@ -21,6 +21,7 @@ Unobtainable.lua
 MountSteps.lua
 MountData.lua
 WhatsNew.lua
+StepReminder.lua
 Engine.lua
 MainTracker.lua
 MountDetail.lua
