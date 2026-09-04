@@ -157,7 +157,6 @@ local function BuildWindow()
     end
 
     Brand.ApplyBackground(f)
-    Brand.ApplyBackgroundImage(f)
     Brand.DrawBorder(f)
 
     Brand.Title(f, "My Collection", 22, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 4)
@@ -183,7 +182,7 @@ local function BuildWindow()
         self:ClearFocus()
     end)
 
-    Brand.DrawDivider(f, 0, 98, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 98, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     scrollFrame = CreateFrame("ScrollFrame", "XalsReinsCollectionScroll", f)
     scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + ROW_INSET, -108)

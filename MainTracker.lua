@@ -201,12 +201,18 @@ function Tracker:Refresh()
     local todo = FilteredTodo()
     local display = BuildDisplayList(todo)
 
-    -- On the Raids/Dungeons tabs the grouping itself does the filtering, so the
-    -- count has to come from what actually ended up on screen. Using #todo
-    -- reported the whole to-do list ("1166 still to get from dungeons").
+    -- On the Raids/Dungeons tabs the grouping itself does the filtering, so
+    -- the count has to come from the actual sections, not #todo (that
+    -- reported the whole to-do list, e.g. "1166 still to get from dungeons").
+    -- Every section starts collapsed, so counting `display[i].entry` rows
+    -- (confirmed 2026-09-02: it only counts rows from EXPANDED sections,
+    -- which is why the header number never matched the sum of the section
+    -- badges below it - those badges show each section's real total via
+    -- item.count regardless of collapse state, so summing item.count instead
+    -- gives the true total.
     local shown = 0
     for i = 1, #display do
-        if display[i].entry then shown = shown + 1 end
+        if display[i].sectionName then shown = shown + display[i].count end
     end
 
     for i = 1, #display do
@@ -324,7 +330,6 @@ local function BuildWindow()
     end
 
     Brand.ApplyBackground(f)
-    Brand.ApplyBackgroundImage(f)
     Brand.DrawBorder(f)
 
     Brand.Title(f, "Mounts to Collect", 22, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 4)
@@ -528,7 +533,7 @@ local function BuildWindow()
     end
     f.zoneCheck = zoneCheck
 
-    Brand.DrawDivider(f, 0, 140, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 140, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     -- Plain ScrollFrame with the thin custom accent scrollbar, NOT
     -- UIPanelScrollFrameTemplate - Blizzard's arrow-button scrollbar was
