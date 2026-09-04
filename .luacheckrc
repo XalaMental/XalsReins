@@ -56,6 +56,8 @@ read_globals = {
     "LOCATION_COLON",
     "FACTION",
     "PROFESSION",
+    "COST",
+    "ACHIEVEMENT",
     "C_AddOns",
     "C_Timer",
     "GameFontHighlightSmall",
