@@ -1,5 +1,25 @@
 # Xal's Reins - Changelog
 
+## 1.2.0 - September 3, 2026
+
+---
+
+I took another look at how this thing was styled and decided the original brand was leaning a little too blocky for my taste - so this update pulls it back toward something more minimal. The big visible change is the color scheme, and I think it makes things pop a lot more than before. My other addons go for a really minimal footprint, but Reins has such an extensive list to show that full minimalism was never really in the cards for this one - it just works differently here.
+
+While I was in there restyling everything, I ended up finding a few bugs too. Some mounts were splitting into two different groups in the tracker even though they're really from the same place, the count at the top of the Raids and Dungeons tabs wasn't actually matching what was underneath it, and a few of the popup windows could get a little cramped and overlap their own text on mounts with a lot going on. All fixed now.
+
+Thanks for being part of the Xal family.
+
+### 🆕 New
+
+- **A refreshed look** - pulled the visual style back toward something more minimal, with a new color scheme that makes things pop more than the old look did.
+
+### 🔧 Fixed
+
+- Fixed some mounts showing up split into two different groups in the tracker, even though they're really from the same place.
+- Fixed the count at the top of the Raids and Dungeons tabs not matching what was actually listed underneath it.
+- Fixed a few popup windows getting cramped and overlapping their own text on mounts with a lot going on.
+
 ## 1.1.0 - August 23, 2026
 
 ---
