@@ -563,12 +563,21 @@ local LIMITED_TIME_SOURCES = {
 -- was silently affecting zone matching too since both read fields this way.
 local function CleanValue(v)
     if not v then return nil end
+    -- Confirmed live 2026-09-02: Blizzard's structured source text sometimes
+    -- separates facts with the literal two-character sequence "|n" (a manual
+    -- line-break marker Blizzard's own text uses elsewhere) instead of a real
+    -- line-break byte. The capture pattern that finds this value only
+    -- excludes actual line-break bytes, so it never stopped there - "Zone:
+    -- Ardenweald|nCost: 30000" was captured as one long value, a different
+    -- string per mount depending on what followed, even though the real zone
+    -- was identical every time. Cut here, before anything else.
+    v = v:gsub("|n.*$", "")
     v = v:gsub("|c%x%x%x%x%x%x%x%x", "")   -- colour open
     v = v:gsub("|r", "")                   -- colour close
     v = v:gsub("|H.-|h(.-)|h", "%1")       -- hyperlinks, keep the visible text
     v = v:gsub("|T.-|t", "")               -- inline textures
     v = v:gsub("|A.-|a", "")               -- inline atlas markup
-    v = v:gsub("94p", " ")            -- non-breaking space
+    v = v:gsub("\194\160", " ")            -- non-breaking space - was matching the literal text "94p" instead of the actual character (confirmed 2026-09-02), which is why the same real zone kept splitting into several separate groups
     v = v:gsub("^%s+", ""):gsub("%s+$", "")
     if v == "" then return nil end
     return v
