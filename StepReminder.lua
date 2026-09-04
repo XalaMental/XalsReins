@@ -76,11 +76,24 @@ local function QueueRescan()
 end
 
 -- ── The popup ────────────────────────────────────────────────
-local FW, FH = 380, 150
+-- No fixed height, and no placeholder-then-shrink trick either - a
+-- hardcoded 150 was too short for the actual content, so the buttons sat on
+-- top of the text instead of below it (confirmed 2026-09-02). Every element
+-- below is chained TOP-to-previous-BOTTOM (a real relative stack, not fixed
+-- offsets from the frame's own top), then the total height is added up
+-- directly from each piece's own real size right after it's built -
+-- GetStringHeight() on a FontString works immediately after SetText(), no
+-- need to wait for the frame to actually be shown/laid out first.
+local FW = 380
+local ICON_SIZE = 36
+local GAP_TITLE_ICON = 12
+local GAP_ICON_NAME = 8
+local GAP_NAME_SUB = 4
+local BTN_W, BTN_H = 110, 26
 
 local function BuildPopup(entry, remaining)
     local f = CreateFrame("Frame", "XalsReinsStepReminder", UIParent)
-    f:SetSize(FW, FH)
+    f:SetWidth(FW)
     f:SetFrameStrata("DIALOG")
     f:SetToplevel(true)
     f:SetMovable(true)
@@ -94,33 +107,39 @@ local function BuildPopup(entry, remaining)
     Brand.ApplyBackground(f)
     Brand.DrawBorder(f)
 
-    Brand.Title(f, "Pick up where you left off", 16, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN)
+    local title = Brand.Title(f, "Pick up where you left off", 16, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN)
 
     local icon = f:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(36, 36)
-    icon:SetPoint("TOP", f, "TOP", 0, -46)
+    icon:SetSize(ICON_SIZE, ICON_SIZE)
+    icon:SetPoint("TOP", title, "BOTTOM", 0, -GAP_TITLE_ICON)
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     icon:SetTexture(entry.icon)
 
     local name = Brand.FS(f, entry.name, Brand.BODY_FONT_PATH, 14, nil, 1, 1, 1)
-    name:SetPoint("TOP", icon, "BOTTOM", 0, -8)
+    name:SetPoint("TOP", icon, "BOTTOM", 0, -GAP_ICON_NAME)
     name:SetJustifyH("CENTER")
 
     local sub = Brand.FS(f, remaining .. " step" .. (remaining == 1 and "" or "s") .. " left to go.",
         Brand.BODY_FONT_PATH, 12, nil, Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-    sub:SetPoint("TOP", name, "BOTTOM", 0, -4)
+    sub:SetPoint("TOP", name, "BOTTOM", 0, -GAP_NAME_SUB)
     sub:SetJustifyH("CENTER")
 
-    local viewBtn = Brand.MakeButton(f, "Show me", 110, 26, function()
+    local viewBtn = Brand.MakeButton(f, "Show me", BTN_W, BTN_H, function()
         f:Hide()
         addonTable.MountDetail:Show(entry)
     end)
-    viewBtn:SetPoint("BOTTOM", f, "BOTTOM", -60, Brand.SAFE_MARGIN)
+    viewBtn:SetPoint("TOP", sub, "BOTTOM", -60, -Brand.SAFE_MARGIN)
 
-    local dismiss = Brand.MakeButton(f, "Dismiss", 110, 26, function()
+    local dismiss = Brand.MakeButton(f, "Dismiss", BTN_W, BTN_H, function()
         f:Hide()
     end)
-    dismiss:SetPoint("BOTTOM", f, "BOTTOM", 60, Brand.SAFE_MARGIN)
+    dismiss:SetPoint("TOP", sub, "BOTTOM", 60, -Brand.SAFE_MARGIN)
+
+    -- Total height = every piece's own real size, added up directly - not
+    -- measured back off the frame after the fact.
+    f:SetHeight(Brand.SAFE_MARGIN + title:GetStringHeight() + GAP_TITLE_ICON
+        + ICON_SIZE + GAP_ICON_NAME + name:GetStringHeight() + GAP_NAME_SUB
+        + sub:GetStringHeight() + Brand.SAFE_MARGIN + BTN_H + Brand.SAFE_MARGIN)
 
     return f
 end
