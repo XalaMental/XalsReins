@@ -120,6 +120,45 @@ local function PrintFind(text)
     end
 end
 
+-- Diagnostic (temporary, 2026-09-02): shows exactly why entries that display
+-- the same zone name are ending up in separate groups - the CLEANED zone
+-- value used for grouping, byte-escaped so any invisible character shows up
+-- as a visible \NNN code instead of disappearing.
+local function PrintZoneDump(query)
+    if not query or query == "" then
+        Say("usage: /xro zonedump <part of a zone name>")
+        return
+    end
+    local roster = MountData:Ensure()
+    if not roster then
+        Say("couldn't read the mount journal yet - try again in a moment.")
+        return
+    end
+
+    local q = query:lower()
+    local seen = {}
+    for i = 1, #roster do
+        local entry = roster[i]
+        local zone = MountData:GetSourceZone(entry)
+        if zone and zone:lower():find(q, 1, true) then
+            local bytes = {}
+            for c in zone:gmatch(".") do
+                local b = c:byte()
+                if b < 32 or b > 126 then
+                    bytes[#bytes + 1] = string.format("\\%d", b)
+                else
+                    bytes[#bytes + 1] = c
+                end
+            end
+            local escaped = table.concat(bytes)
+            if not seen[escaped] then
+                seen[escaped] = true
+                Say(WHITE .. entry.name .. RESET .. GREY .. " -> " .. RESET .. escaped)
+            end
+        end
+    end
+end
+
 -- Diagnostic: dumps every raw tooltip line the client generates for a mount's
 -- summon spell, with its line type and colour. This is how we find out what
 -- class/race/profession restrictions actually look like in real data, rather
@@ -434,6 +473,8 @@ function ChatCommands:Handle(input)
         PrintWhy(rest)
     elseif cmd == "lines" then
         PrintLines(rest)
+    elseif cmd == "zonedump" then
+        PrintZoneDump(rest)
     elseif cmd == "options" or cmd == "config" or cmd == "settings" then
         addonTable.SettingsPanel:Open()
     else
