@@ -13,7 +13,12 @@ local SettingsPanel = addonTable.SettingsPanel
 local Brand         = addonTable.BrandStyle
 
 local PANEL_NAME = "Xal's Reins"
-local WIN_W, WIN_H = 420, 260
+-- No fixed height - every element below is chained TOP-to-previous-BOTTOM
+-- (a real relative stack), then the total height is added up directly from
+-- each piece's own real size (GetStringHeight() works immediately after
+-- SetText(), no need to wait for the frame to be shown/laid out first).
+local WIN_W = 420
+local INITIAL_H = 500
 
 local window, rootPanel
 
@@ -21,7 +26,7 @@ local function BuildWindow()
     if window then return window end
 
     local f = CreateFrame("Frame", "XalsReinsOptionsWindow", UIParent)
-    f:SetSize(WIN_W, WIN_H)
+    f:SetSize(WIN_W, INITIAL_H)
     f:SetFrameStrata("HIGH")
     f:SetToplevel(true)
     f:SetMovable(true)
@@ -47,7 +52,6 @@ local function BuildWindow()
     end
 
     Brand.ApplyBackground(f)
-    Brand.ApplyBackgroundImage(f)
     Brand.DrawBorder(f)
 
     Brand.Title(f, "Xal's Reins", 24, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 6)
@@ -55,22 +59,26 @@ local function BuildWindow()
     local discord = Brand.MakeDiscordLink(f)
     discord:SetPoint("TOPRIGHT", f, "TOPRIGHT", -Brand.SAFE_MARGIN, -Brand.SAFE_MARGIN)
 
-    Brand.DrawDivider(f, 0, 66, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 66, WIN_W - (Brand.SAFE_MARGIN * 2))
 
+    local NOTE_TOP = 84 -- fixed - clears the title/discord-link/divider chrome above it
     local note = Brand.FS(f, "Settings arrive with the mount list window. For now, "
         .. "/xro shows your collection summary, /xro sources breaks it down by how "
         .. "mounts are obtained, and /xro find <name> looks one up.",
         Brand.BODY_FONT_PATH, 13, nil, Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-    note:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 6, -84)
+    note:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 6, -NOTE_TOP)
     note:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 6, 0)
     note:SetJustifyH("LEFT")
     note:SetWordWrap(true)
 
     -- Minimap button toggle. Brand checkbox, not UICheckButtonTemplate, and
     -- driven by cb.OnToggle rather than an OnClick script - the brand
-    -- checkbox uses OnClick internally to flip its own state first.
-    local mmCheck = Brand.MakeCheckbox(f, 22)
-    mmCheck:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 6, -152)
+    -- checkbox uses OnClick internally to flip its own state first. Anchored
+    -- off note's own bottom (a real relative chain) instead of a fixed
+    -- frame position.
+    local CHECK_SIZE = 22
+    local mmCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
+    mmCheck:SetPoint("TOPLEFT", note, "BOTTOMLEFT", 0, -20)
 
     local mmLabel = Brand.FS(f, "Show the minimap button", Brand.BODY_FONT_PATH, 14, nil,
         Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
@@ -86,7 +94,14 @@ local function BuildWindow()
     end
 
     local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-    close:SetPoint("BOTTOM", f, "BOTTOM", 0, Brand.SAFE_MARGIN)
+    close:SetPoint("TOP", mmCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
+
+    -- Total height, added up directly from each piece's own real size - not
+    -- measured back off the frame after the fact. This panel's text is all
+    -- static (never varies at runtime), so this only ever needs computing
+    -- once at build time.
+    f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE
+        + Brand.SAFE_MARGIN + 20 + Brand.SAFE_MARGIN)
 
     f:Hide()
     window = f

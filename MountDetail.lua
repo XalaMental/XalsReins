@@ -13,7 +13,15 @@ local Detail    = addonTable.MountDetail
 local Brand     = addonTable.BrandStyle
 local MountData = addonTable.MountData
 
-local WIN_W, WIN_H = 430, 470
+-- No fixed height - the description/steps text varies a lot per mount, and
+-- a hardcoded 470 risked the exact same overlap StepReminder.lua had (link
+-- buttons anchored to a fixed frame-bottom position instead of the actual
+-- content). The real height is added up directly from each element's own
+-- size every time a mount is shown (see Detail:Show below) - this initial
+-- size is just a throwaway starting value, always overwritten before the
+-- frame is ever actually shown.
+local WIN_W = 430
+local INITIAL_H = 900
 
 local frame
 
@@ -28,7 +36,7 @@ local function BuildFrame()
 
     local f = CreateFrame("Frame", "XalsReinsMountDetail", UIParent)
     tinsert(UISpecialFrames, "XalsReinsMountDetail")
-    f:SetSize(WIN_W, WIN_H)
+    f:SetSize(WIN_W, INITIAL_H)
     f:SetFrameStrata("DIALOG")
     f:SetToplevel(true)
     f:SetMovable(true)
@@ -52,7 +60,6 @@ local function BuildFrame()
     end
 
     Brand.ApplyBackground(f)
-    Brand.ApplyBackgroundImage(f)
     Brand.DrawBorder(f)
 
     -- Step links use a custom link type, so the frame has to opt in and handle
@@ -88,11 +95,12 @@ local function BuildFrame()
     category:SetJustifyH("LEFT")
     f.categoryText = category
 
-    Brand.DrawDivider(f, 0, 72, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 72, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     local heading = Brand.FS(f, "How to get it", Brand.TITLE_FONT_PATH, 15, nil,
         Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
     heading:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 4, -84)
+    f.headingText = heading
 
     local source = Brand.FS(f, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
     source:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -6)
@@ -150,8 +158,11 @@ local function BuildFrame()
     f.wowheadButton = wowhead
     f.videoButton = video
 
+    -- Re-anchored per mount in Detail:Show (below flavor or the link
+    -- buttons, whichever ends up lowest) instead of a fixed frame position -
+    -- content length varies too much per mount for a fixed spot to work.
     local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-    close:SetPoint("BOTTOM", f, "BOTTOM", 0, Brand.SAFE_MARGIN)
+    f.closeButton = close
 
     f:Hide()
     frame = f
@@ -254,6 +265,10 @@ function Detail:Show(entry)
     f.wowheadURL = MountData:GetWowheadURL(entry)
     f.videoURL   = MountData:GetVideoURL(entry)
 
+    -- Anchored off flavor (the actual last content element) instead of a
+    -- fixed frame-bottom position - flavor's length varies a lot per mount,
+    -- so a fixed offset here risked the exact same overlap StepReminder.lua
+    -- had.
     local anchor = nil
     for _, pair in ipairs({ { f.wowheadURL, f.wowheadButton }, { f.videoURL, f.videoButton } }) do
         local url, button = pair[1], pair[2]
@@ -262,8 +277,7 @@ function Detail:Show(entry)
             if anchor then
                 button:SetPoint("LEFT", anchor, "RIGHT", 10, 0)
             else
-                button:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT",
-                    Brand.SAFE_MARGIN + 4, Brand.SAFE_MARGIN + 34)
+                button:SetPoint("TOPLEFT", f.flavorText, "BOTTOMLEFT", 0, -Brand.SAFE_MARGIN)
             end
             button:Show()
             anchor = button
@@ -271,6 +285,35 @@ function Detail:Show(entry)
             button:Hide()
         end
     end
+
+    -- Close sits below whichever ended up lowest - the link-button row if
+    -- either link exists, otherwise flavor directly.
+    local lowestContent = (f.wowheadButton:IsShown() and f.wowheadButton)
+        or (f.videoButton:IsShown() and f.videoButton)
+        or f.flavorText
+    f.closeButton:ClearAllPoints()
+    f.closeButton:SetPoint("TOP", lowestContent, "BOTTOM", 0, -Brand.SAFE_MARGIN)
+
+    -- Total height, added up directly from each piece's own real size - not
+    -- measured back off the frame after the fact. heading sits at a fixed
+    -- 84px from the top (clears the icon/title/category/divider region
+    -- above it); everything from there down is real content whose height
+    -- varies per mount, so it's summed from each element's own
+    -- GetStringHeight() (works immediately after SetText(), no need to
+    -- wait for the frame to be shown/laid out first). Link/close button
+    -- heights (20) are Brand.MakeTextLink's own fixed size, not guessed.
+    local hasLinks = f.wowheadButton:IsShown() or f.videoButton:IsShown()
+    local linkRowHeight = hasLinks and (20 + Brand.SAFE_MARGIN) or 0
+    f:SetHeight(84
+        + f.headingText:GetStringHeight() + 6
+        + f.sourceText:GetStringHeight() + 10
+        + f.blockedText:GetStringHeight() + 10
+        + f.availabilityText:GetStringHeight() + 12
+        + f.stepsHeading:GetStringHeight() + 6
+        + f.stepsText:GetStringHeight() + 12
+        + f.flavorText:GetStringHeight() + Brand.SAFE_MARGIN
+        + linkRowHeight
+        + 20 + Brand.SAFE_MARGIN)
 
     f:Show()
 end
