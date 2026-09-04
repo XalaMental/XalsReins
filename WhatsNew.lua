@@ -7,7 +7,7 @@
 -- .toc at runtime) against the last version this player actually saw, and
 -- only pops up when they differ.
 --
--- Claude already writes CHANGELOG.md by hand before every release, in Dev,
+-- CHANGELOG.md already gets written by hand before every release, in Dev,
 -- before Jason ever commits/pushes anything - same moment, update WHATS_NEW
 -- below (the "date" field and the intro/sections content) to match. It's
 -- one more file touched during normal release prep, nothing extra for Jason
