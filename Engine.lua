@@ -30,12 +30,15 @@ function Engine:Init()
     -- rather than something to error on.
     MountData:Build()
 
-    -- Show a reminder for whichever mount's step chain this character most
-    -- recently made progress on (from a PREVIOUS session), then start this
-    -- session's own live tracking so the next login has something fresh to
-    -- show if anything gets finished during play.
-    addonTable.StepReminder:CheckAndShow()
+    -- Starts this session's own live tracking of which mount's step chain
+    -- was most recently touched, so the zone-alert icon's left-click always
+    -- has somewhere fresh to point.
     addonTable.StepReminder:Start()
+
+    -- The floating zone-alert icon - flashes when this zone has an
+    -- acquirable mount, always visible otherwise unless that's turned off
+    -- in settings. Needs the roster built first, same as the tracker itself.
+    addonTable.ZoneAlertIcon:Init()
 
     -- Trading Post offerings often aren't loaded at PLAYER_LOGIN; retry a few
     -- times rather than permanently treating every Trading Post mount as
