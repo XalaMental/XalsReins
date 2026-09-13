@@ -639,3 +639,17 @@ end
 function Tracker:IsShown()
     return frame and frame:IsShown()
 end
+
+-- Opens the tracker with the zone-only filter forced on, for the zone-alert
+-- icon's right-click. Only flips the checkbox if it isn't already on, so
+-- this never fights a player who already had it set.
+function Tracker:ShowZoneOnly()
+    local f = BuildWindow()
+    if not zoneOnly then
+        zoneOnly = true
+        if type(XalsReinsDB) == "table" then XalsReinsDB.zoneOnly = true end
+        if f.zoneCheck then f.zoneCheck:SetChecked(true) end
+    end
+    self:Refresh()
+    f:Show()
+end
