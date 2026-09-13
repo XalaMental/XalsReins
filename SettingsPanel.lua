@@ -93,14 +93,36 @@ local function BuildWindow()
         addonTable.MinimapButton:SetShown(self:GetChecked() and true or false)
     end
 
+    -- Zone-alert icon toggle. When off, the floating saddle icon only shows
+    -- up while the current zone has something acquirable, instead of
+    -- staying up all the time to keep left-click's "last mount worked on"
+    -- reachable.
+    local zoneCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
+    zoneCheck:SetPoint("TOPLEFT", mmCheck, "BOTTOMLEFT", 0, -16)
+
+    local zoneLabel = Brand.FS(f, "Show reminder for last mount worked on", Brand.BODY_FONT_PATH, 14, nil,
+        Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+    zoneLabel:SetPoint("LEFT", zoneCheck, "RIGHT", 8, 0)
+    zoneLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
+    zoneLabel:SetJustifyH("LEFT")
+    zoneLabel:SetWordWrap(true)
+
+    zoneCheck:SetChecked(type(XalsReinsDB) == "table" and XalsReinsDB.showLastMountReminder ~= false)
+    zoneCheck.OnToggle = function(self)
+        if type(XalsReinsDB) == "table" then
+            XalsReinsDB.showLastMountReminder = self:GetChecked() and true or false
+        end
+        if addonTable.ZoneAlertIcon then addonTable.ZoneAlertIcon:UpdateVisibility() end
+    end
+
     local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-    close:SetPoint("TOP", mmCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
+    close:SetPoint("TOP", zoneCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
 
     -- Total height, added up directly from each piece's own real size - not
     -- measured back off the frame after the fact. This panel's text is all
     -- static (never varies at runtime), so this only ever needs computing
     -- once at build time.
-    f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE
+    f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE + 16 + CHECK_SIZE
         + Brand.SAFE_MARGIN + 20 + Brand.SAFE_MARGIN)
 
     f:Hide()
