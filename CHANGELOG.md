@@ -1,5 +1,21 @@
 # Xal's Reins - Changelog
 
+## 1.3.0 - September 13, 2026
+
+---
+
+While I was working on the new styling, I realized I wanted this whole thing to feel a lot more minimalistic - a lot of you like that cleaner, simpler flow, and I wanted the addon to actually reflect that. So instead of a popup taking over your screen, there's now a small icon that shows up when you're standing in a zone with a mount you can actually go get. There's also a setting to bring back the last mount you were working on, so you can jump right back to it whenever you want. A little icon that only shows up when it matters just felt a lot lighter than a full panel taking up space.
+
+Thanks for being part of the Xal family.
+
+### 🆕 New
+
+- **A floating zone icon** - flashes when the zone you're in has a mount you can actually go get, without needing a window taking up your screen.
+
+### 🔧 Removed
+
+- The login popup reminding you about your last mount - replaced by the new icon above. There's a setting to bring the "last mount worked on" reminder back through the icon instead.
+
 ## 1.2.0 - September 3, 2026
 
 ---
