@@ -61,6 +61,7 @@ read_globals = {
     "C_AddOns",
     "C_Timer",
     "GameFontHighlightSmall",
+    "GameTooltip",
     "InputBoxTemplate",
     "UISpecialFrames",
     "BackdropTemplateMixin",
