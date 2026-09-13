@@ -28,4 +28,5 @@ MountDetail.lua
 CollectionWindow.lua
 SettingsPanel.lua
 MinimapButton.lua
+ZoneAlertIcon.lua
 ChatCommands.lua
