@@ -14,7 +14,9 @@ local Tracker   = addonTable.MainTracker
 local Brand     = addonTable.BrandStyle
 local MountData = addonTable.MountData
 
-local WIN_W, WIN_H = 400, 520
+-- WIN_H trimmed 26px (2026-09-29) - was sized to fit the "this zone only"
+-- checkbox row, now gone (superseded by the Zone tab).
+local WIN_W, WIN_H = 400, 494
 local ROW_H        = 30
 local ROW_INSET    = 10
 
@@ -26,9 +28,27 @@ local rows = {}
 -- and filtering on that would collapse the list to the single suggestion
 -- before the user has agreed to it.
 local typedText = ""
-local zoneOnly = false
-local activeTab = "all"   -- "all" | "raids" | "dungeons"
+local activeTab = "all"   -- "zone" | "all" | "raids" | "dungeons"
 local tabButtons = {}
+
+-- Keeps every tab button's label color in sync with activeTab - the active
+-- one this addon's one accent color (Brand.HEADER_COLOR), every other one
+-- Brand.SIDEBAR_UNSELECTED, the confirmed family-wide pattern for a set of
+-- tabs/links where exactly one is the current selection (was white for the
+-- active tab and HEADER_COLOR for the rest - fixed 2026-09-29, that read as
+-- "every tab is active at once" instead of showing one clear current tab).
+-- Module-level (not local to BuildWindow) so Tracker:ShowZoneOnly() can
+-- call it too, when the zone-alert icon's right-click switches tabs from
+-- outside the window's own build closure.
+local function UpdateTabLook()
+    for key, btn in pairs(tabButtons) do
+        if key == activeTab then
+            btn.label:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
+        else
+            btn.label:SetTextColor(Brand.SIDEBAR_UNSELECTED[1], Brand.SIDEBAR_UNSELECTED[2], Brand.SIDEBAR_UNSELECTED[3], 1)
+        end
+    end
+end
 
 -- Section collapse state. Zone sections start collapsed so the window opens as
 -- a compact column of zone names rather than hundreds of rows; the four named
@@ -73,7 +93,7 @@ local function AcquireRow(index)
 
     local hl = row:CreateTexture(nil, "BACKGROUND")
     hl:SetAllPoints()
-    hl:SetColorTexture(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 0.16)
+    hl:SetColorTexture(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 0.16)
     hl:Hide()
     row.highlight = hl
 
@@ -118,6 +138,108 @@ local function AcquireRow(index)
     return row
 end
 
+-- ── WIP tab (cards) ──────────────────────────────────────────────
+-- Mounts with at least one step done but not finished. A real card per
+-- mount (icon, name, steps-done, percent) rather than a flat row - these
+-- are a small, deliberately-tracked set, not the whole to-do list, so the
+-- extra visual weight reads as "this is the short list you're actively
+-- working" rather than clutter. Separate pool from the normal rows, since
+-- Refresh() renders one or the other depending on activeTab, never both.
+local WIP_CARD_H, WIP_CARD_GAP = 52, 8
+local wipCards = {}
+
+local function AcquireWipCard(index)
+    local card = wipCards[index]
+    if card then return card end
+
+    card = CreateFrame("Button", nil, content)
+    card:SetHeight(WIP_CARD_H)
+    card:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -((index - 1) * (WIP_CARD_H + WIP_CARD_GAP)))
+    card:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -((index - 1) * (WIP_CARD_H + WIP_CARD_GAP)))
+    Brand.ApplyCardBackground(card)
+    Brand.DrawBorder(card, 0)
+
+    local hl = card:CreateTexture(nil, "BACKGROUND")
+    hl:SetAllPoints()
+    hl:SetColorTexture(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 0.12)
+    hl:Hide()
+    card.highlight = hl
+
+    local icon = card:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(32, 32)
+    icon:SetPoint("LEFT", card, "LEFT", 8, 0)
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    card.icon = icon
+
+    local percent = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil,
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
+    percent:SetPoint("RIGHT", card, "RIGHT", -10, 0)
+    card.percentText = percent
+
+    local name = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -4)
+    name:SetPoint("RIGHT", percent, "LEFT", -8, 0)
+    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
+    card.nameText = name
+
+    local progress = Brand.FS(card, "", Brand.BODY_FONT_PATH, 11, nil,
+        Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+    progress:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+    progress:SetJustifyH("LEFT")
+    card.progressText = progress
+
+    card:SetScript("OnEnter", function(self) self.highlight:Show() end)
+    card:SetScript("OnLeave", function(self) self.highlight:Hide() end)
+    card:SetScript("OnClick", function(self)
+        if self.entry then addonTable.MountDetail:Show(self.entry) end
+    end)
+
+    wipCards[index] = card
+    return card
+end
+
+-- Still shows in Zone/All/Raids/Dungeons too - this is an additional place
+-- to see an in-progress mount, not an exclusive one (confirmed explicitly:
+-- "that is just another place where it is shown").
+local function RefreshWipTab()
+    for i = 1, #rows do rows[i]:Hide() end
+
+    local todo = MountData:GetTodoList()
+    local list = {}
+    for i = 1, #todo do
+        if MountData:IsInProgress(todo[i]) then
+            list[#list + 1] = todo[i]
+        end
+    end
+
+    for i = 1, #list do
+        local entry = list[i]
+        local card = AcquireWipCard(i)
+        card.entry = entry
+        card.icon:SetTexture(entry.icon)
+        card.nameText:SetText(entry.name)
+
+        local _, done, total = MountData:GetStepLines(entry)
+        done, total = done or 0, total or 0
+        card.progressText:SetText(done .. " of " .. total .. " steps done")
+        card.percentText:SetText((total > 0 and math.floor(done / total * 100 + 0.5) or 0) .. "%")
+        card:Show()
+    end
+
+    for i = #list + 1, #wipCards do
+        wipCards[i]:Hide()
+        wipCards[i].entry = nil
+    end
+
+    countText:SetText(#list .. " in progress")
+
+    local height = math.max(1, #list * (WIP_CARD_H + WIP_CARD_GAP))
+    content:SetHeight(height)
+    scrollChild:SetHeight(height)
+    if frame.UpdateScrollRange then frame.UpdateScrollRange() end
+end
+
 -- ── Filtering ────────────────────────────────────────────────────
 -- Substring match, so typing "proto" finds "Time-Lost Proto-Drake" and not
 -- just names that start with it.
@@ -144,7 +266,7 @@ local function FilteredTodo()
 
     local todo = MountData:GetTodoList()
 
-    if zoneOnly then
+    if activeTab == "zone" then
         -- Resolved once per refresh rather than per mount.
         local zoneNames = MountData:CurrentZoneNames()
         local zoned = {}
@@ -174,7 +296,11 @@ local function BuildDisplayList(todo)
     elseif activeTab == "dungeons" then
         sections = MountData:GroupByInstance(todo, "dungeon")
     else
-        sections = MountData:GroupIntoSections(todo, not zoneOnly)
+        -- todo is already narrowed to one zone on the Zone tab, so every
+        -- entry would sort into its own single-item real-zone-name bucket
+        -- if grouped normally - collapse them all under one "This Zone"
+        -- header instead, same as the old checkbox's behavior.
+        sections = MountData:GroupIntoSections(todo, activeTab ~= "zone")
     end
     local display = {}
     for i = 1, #sections do
@@ -197,6 +323,16 @@ end
 -- ── Refresh ──────────────────────────────────────────────────────
 function Tracker:Refresh()
     if not frame then return end
+
+    -- WIP renders cards, not rows - its own path entirely, except while
+    -- searching (a search is a direct question about a specific mount, same
+    -- rule every other tab already follows - it falls through to the normal
+    -- flat row display below instead of the card list).
+    if activeTab == "wip" and typedText == "" then
+        RefreshWipTab()
+        return
+    end
+    for i = 1, #wipCards do wipCards[i]:Hide() end
 
     local todo = FilteredTodo()
     local display = BuildDisplayList(todo)
@@ -226,7 +362,7 @@ function Tracker:Refresh()
             row.tagText:SetText("")
             row.sourceText:SetText("|cff999999" .. item.count .. "|r")
             row.nameText:SetText((item.collapsed and "+  " or "-  ") .. item.sectionName)
-            row.nameText:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+            row.nameText:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
             row:Show()
         else
             local entry = item.entry
@@ -272,7 +408,7 @@ function Tracker:Refresh()
     end
 
     local stats = MountData.stats
-    if zoneOnly and typedText == "" then
+    if activeTab == "zone" and typedText == "" then
         countText:SetText(#todo .. " here  |cff999999in " .. (GetRealZoneText() or "?") .. "|r")
     elseif typedText ~= "" then
         countText:SetText(#todo .. " match" .. (#todo == 1 and "" or "es") ..
@@ -325,12 +461,14 @@ local function BuildWindow()
     end
 
     if type(XalsReinsDB) == "table" then
-        zoneOnly = XalsReinsDB.zoneOnly and true or false
         activeTab = XalsReinsDB.activeTab or "all"
     end
 
-    Brand.ApplyBackground(f)
-    Brand.DrawBorder(f)
+    -- Kept as f.keepChrome so Xal's Keep can hide them while this window
+    -- sits inside it (the Keep draws its own).
+    local bg = Brand.ApplyBackground(f)
+    local bTop, bBottom, bLeft, bRight = Brand.DrawBorder(f, 1)
+    f.keepChrome = { bg, bTop, bBottom, bLeft, bRight }
 
     Brand.Title(f, "Mounts to Collect", 22, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 4)
 
@@ -339,22 +477,21 @@ local function BuildWindow()
     countText:SetPoint("TOP", f, "TOP", 0, -44)
 
     -- Tabs. Text links rather than boxed tabs, matching the rest of the suite;
-    -- the active one is white, the others accent gold.
+    -- the active one is this addon's one accent color, the others muted.
+    -- Zone is a real 4th tab (2026-09-29, replaces the old "this zone only"
+    -- checkbox entirely - same pattern as Xal's Compendium's own Zone/
+    -- Daily/Weekly/Legacy tabs), leftmost per that same reference. WIP is a
+    -- 5th (2026-10-01) - mounts with at least one step done but not
+    -- finished, rendered as cards (see RefreshWipTab above) rather than
+    -- rows. Additive, not exclusive - an in-progress mount still shows on
+    -- Zone/All/Raids/Dungeons too, WIP is just another place to see it.
     local TABS = {
+        { key = "zone",     label = "Zone" },
         { key = "all",      label = "All" },
         { key = "raids",    label = "Raids" },
         { key = "dungeons", label = "Dungeons" },
+        { key = "wip",      label = "WIP" },
     }
-
-    local function UpdateTabLook()
-        for key, btn in pairs(tabButtons) do
-            if key == activeTab then
-                btn.label:SetTextColor(1, 1, 1, 1)
-            else
-                btn.label:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
-            end
-        end
-    end
 
     local previous
     for i = 1, #TABS do
@@ -365,6 +502,15 @@ local function BuildWindow()
             UpdateTabLook()
             Tracker:Refresh()
         end)
+        -- Bumped from MakeTextLink's default GameFontHighlightSmall (2026-
+        -- 09-29) - was reading too small for a primary nav row. Real bold
+        -- (Inter SemiBold), not the OUTLINE flag, which only outlines the
+        -- glyphs rather than changing their weight. Width has to be
+        -- recomputed after the font change - MakeTextLink already sized the
+        -- button off the smaller font's string width, and these are laid
+        -- out left-to-right off each other's real edges.
+        btn.label:SetFont(Brand.BODY_FONT_PATH_SEMIBOLD, 15, "")
+        btn:SetWidth(math.max(40, btn.label:GetStringWidth() + 8))
         -- The hover handlers would otherwise fight the active-tab colouring.
         btn:SetScript("OnLeave", function() UpdateTabLook() end)
 
@@ -378,21 +524,38 @@ local function BuildWindow()
     end
     UpdateTabLook()
 
+    -- Real bug, confirmed via screenshot (2026-10-01): Raids/Dungeons ran
+    -- flush into each other with no gap at all, while Zone/All looked fine.
+    -- Root cause - GetStringWidth() right after SetFont() can read the
+    -- wrong value for a custom TTF the client hasn't loaded into its font
+    -- cache yet, and Inter-SemiBold is used nowhere else in this addon
+    -- before this tab row, so it's genuinely being loaded for the first
+    -- time right here. Re-measuring one tick later (once the font is
+    -- actually loaded) and reapplying each button's width fixes it -
+    -- doesn't need to re-anchor anything, since every tab's LEFT point is a
+    -- live reference to the PREVIOUS tab's RIGHT edge, so correcting widths
+    -- in order automatically cascades the whole row back into place.
+    C_Timer.After(0, function()
+        for i = 1, #TABS do
+            local btn = tabButtons[TABS[i].key]
+            if btn then
+                btn:SetWidth(math.max(40, btn.label:GetStringWidth() + 8))
+            end
+        end
+    end)
+
     -- Search box, directly above the list. Native EditBox per the widget rule,
     -- with a greyed placeholder. Typing sorts the list underneath and nothing
     -- else - no suggestion overlay, which would cover the mounts it is meant
     -- to be helping you find.
-    searchBox = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-    searchBox:SetHeight(20)
+    searchBox = Brand.MakeEditBox(f, WIN_W - (Brand.SAFE_MARGIN + 14) - (Brand.SAFE_MARGIN + 4), 20)
     searchBox:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 14, -88)
-    searchBox:SetPoint("TOPRIGHT", f, "TOPRIGHT", -Brand.SAFE_MARGIN - 4, -88)
     searchBox:SetAutoFocus(false)
-    searchBox:SetFontObject("GameFontHighlightSmall")
 
     local placeholder = searchBox:CreateFontString(nil, "OVERLAY")
     placeholder:SetFont(Brand.BODY_FONT_PATH, 12, "")
     placeholder:SetTextColor(0.5, 0.5, 0.5)
-    placeholder:SetPoint("LEFT", searchBox, "LEFT", 4, 0)
+    placeholder:SetPoint("LEFT", searchBox, "LEFT", 6, 0)
     placeholder:SetText("Search mounts...")
 
     -- ── Spelling helper ──────────────────────────────────────────
@@ -408,7 +571,7 @@ local function BuildWindow()
     listFrame:SetWidth(220)
     listFrame:SetFrameStrata("DIALOG")
     Brand.ApplyBackground(listFrame)
-    Brand.DrawBorder(listFrame)
+    Brand.DrawBorder(listFrame, 1)
     listFrame:Hide()
 
     local rowBtns = {}
@@ -514,33 +677,17 @@ local function BuildWindow()
     -- Never leave it floating beside a closed window.
     f:HookScript("OnHide", function() listFrame:Hide() end)
 
-    -- Current-zone toggle. Brand checkbox, driven by OnToggle.
-    local zoneCheck = Brand.MakeCheckbox(f, 18)
-    zoneCheck:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 14, -114)
-
-    local zoneLabel = Brand.FS(f, "Only show mounts from this zone", Brand.BODY_FONT_PATH, 12,
-        nil, Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-    zoneLabel:SetPoint("LEFT", zoneCheck, "RIGHT", 8, 0)
-    zoneLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
-    zoneLabel:SetJustifyH("LEFT")
-    zoneLabel:SetWordWrap(false)
-
-    zoneCheck:SetChecked(zoneOnly)
-    zoneCheck.OnToggle = function(self)
-        zoneOnly = self:GetChecked() and true or false
-        if type(XalsReinsDB) == "table" then XalsReinsDB.zoneOnly = zoneOnly end
-        Tracker:Refresh()
-    end
-    f.zoneCheck = zoneCheck
-
-    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 140, WIN_W - (Brand.SAFE_MARGIN * 2))
+    -- The old "only show mounts from this zone" checkbox lived here - now
+    -- the Zone tab above does that job, so this divider sits right under
+    -- the search box instead of below a checkbox row.
+    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 114, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     -- Plain ScrollFrame with the thin custom accent scrollbar, NOT
     -- UIPanelScrollFrameTemplate - Blizzard's arrow-button scrollbar was
     -- explicitly rejected in Quest Compass and the thin bar ported to
     -- Compendium instead. Same treatment here for consistency.
     scrollFrame = CreateFrame("ScrollFrame", "XalsReinsTrackerScroll", f)
-    scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + ROW_INSET, -150)
+    scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + ROW_INSET, -124)
     scrollFrame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -Brand.SAFE_MARGIN - 12, 48)
 
     local scrollTrack = CreateFrame("Frame", nil, f, "BackdropTemplate")
@@ -558,7 +705,7 @@ local function BuildWindow()
     scrollThumb:SetWidth(8)
     scrollThumb:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local scrollThumbTex = scrollThumb:GetThumbTexture()
-    scrollThumbTex:SetVertexColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
+    scrollThumbTex:SetVertexColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
     scrollThumbTex:SetWidth(8)
 
     local suppressScrollCallback = false
@@ -614,13 +761,62 @@ local function BuildWindow()
 
     local close = Brand.MakeCloseButton(f, function() f:Hide() end)
     close:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -Brand.SAFE_MARGIN - 4, Brand.SAFE_MARGIN)
+    f.keepChrome[#f.keepChrome + 1] = close
 
     f:Hide()
     frame = f
     return f
 end
 
+-- ── Xal's Keep ───────────────────────────────────────────────────
+-- When Xal's Keep is installed, this window lives inside the Keep instead of
+-- floating on its own, and every way of opening it (minimap button, /xro,
+-- the zone alert) opens the Keep on the Reins tab. Without the Keep, nothing
+-- here runs and the window behaves exactly as before.
+local KEEP_KEY = "reins"
+
+-- Re-homes the window into the Keep's content area. The Keep supplies the
+-- background, border, Close and dragging, so ours step aside; mouse goes off
+-- on the window itself so a click on empty space drags the Keep instead.
+-- Rows, tabs and links are their own frames and still take clicks.
+local function AttachToKeep(container)
+    local f = BuildWindow()
+    f.keepHost = container
+    f:SetParent(container)
+    f:ClearAllPoints()
+    f:SetPoint("TOP", container, "TOP", 0, 0)
+    f:SetPoint("BOTTOM", container, "BOTTOM", 0, 0)
+    f:SetFrameStrata(container:GetFrameStrata())
+    f:SetFrameLevel(container:GetFrameLevel() + 1)
+    f:SetToplevel(false)
+    f:SetMovable(false)
+    f:EnableMouse(false)
+    f:SetClampedToScreen(false)
+    for _, region in ipairs(f.keepChrome) do region:Hide() end
+    -- Escape closes the Keep as a whole, not just this tab.
+    for i = #UISpecialFrames, 1, -1 do
+        if UISpecialFrames[i] == "XalsReinsTracker" then table.remove(UISpecialFrames, i) end
+    end
+    return f
+end
+
+local function ShowInKeep()
+    Tracker:Refresh()
+    frame:Show()
+end
+
+if XalsKeep and XalsKeep.Register then
+    XalsKeep:Register(KEEP_KEY, {
+        label    = "Reins",
+        addon    = "XalsReins",
+        attach   = AttachToKeep,
+        show     = ShowInKeep,
+        showZone = function() Tracker:ShowZoneOnly() end,
+    })
+end
+
 function Tracker:Toggle()
+    if XalsKeep then return XalsKeep:Toggle(KEEP_KEY) end
     local f = BuildWindow()
     if f:IsShown() then
         f:Hide()
@@ -631,25 +827,30 @@ function Tracker:Toggle()
 end
 
 function Tracker:Show()
+    if XalsKeep then return XalsKeep:Show(KEEP_KEY) end
     BuildWindow()
     self:Refresh()
     frame:Show()
 end
 
+-- Inside the Keep, "shown" has to mean actually on screen - the window stays
+-- flagged shown while the Keep is closed or on another tab.
 function Tracker:IsShown()
+    if frame and frame.keepHost then return frame:IsVisible() end
     return frame and frame:IsShown()
 end
 
--- Opens the tracker with the zone-only filter forced on, for the zone-alert
--- icon's right-click. Only flips the checkbox if it isn't already on, so
--- this never fights a player who already had it set.
+-- Opens the tracker on the Zone tab, for the zone-alert icon's right-click.
+-- Only switches tabs if it isn't already on Zone, so this never fights a
+-- player who's already got some other tab open on purpose.
 function Tracker:ShowZoneOnly()
     local f = BuildWindow()
-    if not zoneOnly then
-        zoneOnly = true
-        if type(XalsReinsDB) == "table" then XalsReinsDB.zoneOnly = true end
-        if f.zoneCheck then f.zoneCheck:SetChecked(true) end
+    if activeTab ~= "zone" then
+        activeTab = "zone"
+        if type(XalsReinsDB) == "table" then XalsReinsDB.activeTab = "zone" end
+        UpdateTabLook()
     end
+    if XalsKeep then return XalsKeep:Show(KEEP_KEY) end
     self:Refresh()
     f:Show()
 end
