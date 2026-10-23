@@ -445,6 +445,104 @@ function MountData:GetSourceZone(entry)
     return nil
 end
 
+-- Same labelled-line technique as GetSourceZone above, pulling the vendor's
+-- NAME off a "Vendor:" line. No confirmed Blizzard global for this label the
+-- way ZONE/LOCATION_COLON exist for zone text, so this only works on an
+-- English client - same honest limitation GetSourceZone already carries for
+-- its own fallback strings.
+function MountData:GetSourceVendor(entry)
+    local extra = self:GetExtra(entry.mountID)
+    local source = extra and extra.source
+    if not source or source == "" then return nil end
+
+    local vendor = source:match("Vendor:%s*([^\r\n]+)")
+    return self.CleanValue(vendor)
+end
+
+-- ── Vendor waypoints ────────────────────────────────────────────
+-- Cross-references a vendor's NAME (from GetSourceVendor above) against the
+-- shared VendorLocations.lua data (see LICENSE.md - third-party, MIT,
+-- shared verbatim with Xal's Armoire). Built once, same pattern as
+-- Armoire's own Data:VendorLocationFor - an index keyed by exact name,
+-- deduping a second npcID that shares a name AND stands in essentially the
+-- same spot (a Classic/phase/reskin variant), keeping genuinely different
+-- spots as separate candidates.
+local vendorLocationByName
+
+local function BuildVendorLocationIndex()
+    vendorLocationByName = {}
+    if type(XalsVendorLocations) ~= "table" then return end
+    for _, loc in pairs(XalsVendorLocations) do
+        local name = loc.name
+        if name and name ~= "" then
+            local list = vendorLocationByName[name]
+            if not list then
+                vendorLocationByName[name] = { loc }
+            else
+                local isDuplicate = false
+                for i = 1, #list do
+                    local existing = list[i]
+                    local dx, dy = math.abs(existing.x - loc.x), math.abs(existing.y - loc.y)
+                    if existing.mapID == loc.mapID and dx <= 0.01 and dy <= 0.01 then
+                        isDuplicate = true
+                        break
+                    end
+                end
+                if not isDuplicate then
+                    list[#list + 1] = loc
+                end
+            end
+        end
+    end
+end
+
+-- Does this map sit inside the named zone? True when the map's own name is
+-- the zone, or when any map above it is (a vendor in Dornogal is "in" the
+-- Isle of Dorn; one in the Exodar is "in" Azuremyst Isle). Names are the
+-- client's own localized ones, same language as the mount's source text.
+-- If the client can't answer at all, this doesn't reject anything.
+local function MapIsInZone(mapID, zoneLower)
+    if not (C_Map and C_Map.GetMapInfo) then return true end
+    for _ = 1, 6 do
+        if not mapID or mapID <= 0 then return false end
+        local info = C_Map.GetMapInfo(mapID)
+        if not info then return false end
+        if info.name and info.name:lower() == zoneLower then return true end
+        mapID = info.parentMapID
+    end
+    return false
+end
+
+-- Returns a LIST of candidate {mapID, x, y, ...} spots for a vendor's name -
+-- empty if nothing recorded, one entry for the normal case, or more than
+-- one for a name that genuinely belongs to more than one real vendor.
+--
+-- zoneHint is the zone named in the mount's own source text. When there is
+-- one, only candidates that actually stand in that zone count - this
+-- settles a name shared by NPCs in different places, and stops a name that
+-- happens to match some unrelated NPC elsewhere from sending the player to
+-- the wrong spot. With no zone to go on it falls back to name alone.
+--
+-- The caller only uses the result when there's EXACTLY one candidate - a
+-- name that's ambiguous, in the wrong zone, or simply never recorded in
+-- VendorLocations.lua just means no waypoint button, never a guess.
+function MountData:VendorLocationFor(vendorName, zoneHint)
+    if not vendorName or vendorName == "" then return {} end
+    if not vendorLocationByName then BuildVendorLocationIndex() end
+
+    local candidates = vendorLocationByName[vendorName] or {}
+    if #candidates == 0 or not zoneHint or zoneHint == "" then return candidates end
+
+    local zoneLower = zoneHint:lower()
+    local inZone = {}
+    for i = 1, #candidates do
+        if MapIsInZone(candidates[i].mapID, zoneLower) then
+            inZone[#inZone + 1] = candidates[i]
+        end
+    end
+    return inZone
+end
+
 -- Matches against `source` only. The flavour description is deliberately
 -- excluded - it mentions places in prose constantly and would match nearly
 -- everything.
@@ -907,32 +1005,38 @@ function MountData:StepStatus(step)
     return nil
 end
 
--- Steps rendered as a checklist against this character. Returns the text and
--- how many of the checkable steps are done.
--- Returns: text, howManyDone, howManySteps, howManyUntrackable
-function MountData:GetStepLines(entry)
+-- The one-character status marker for a step. The unknown marker is "?"
+-- rather than a dash: a dash sits where a bullet would and was being read as
+-- "completed". Shared by the flat text list below and the detail popup's
+-- per-step cards so they can never disagree.
+function MountData.StepMarker(status)
+    if status == true then
+        return "|cff44dd66v|r"
+    elseif status == false then
+        return "|cffdd5555x|r"
+    end
+    return "|cff999999?|r"
+end
+
+-- Steps as structured data, one entry per step, checked against this
+-- character - the detail popup renders each as its own card. Each entry:
+-- { status = true/false/nil, text = <maybe clickable>, start = <string|nil> }.
+-- Returns: cards, howManyDone, howManySteps, howManyUntrackable
+function MountData:GetStepCards(entry)
     local steps = self:GetSteps(entry)
     if not steps then return nil, 0, 0, 0 end
 
     -- The denominator is EVERY step, not just the checkable ones. Counting only
     -- what we can verify produced "0 of 1 done" beside three visible lines,
     -- which just reads as broken. A step we can't verify is unknown, not done.
-    --
-    -- The unknown marker is "?" rather than a dash: a dash sits where a bullet
-    -- would and was being read as "completed".
-    local lines, done, untracked = {}, 0, 0
+    local cards, done, untracked = {}, 0, 0
     for i = 1, #steps do
         local step = steps[i]
         local status = self:StepStatus(step)
-        local marker
 
         if status == true then
-            marker = "|cff44dd66v|r "
             done = done + 1
-        elseif status == false then
-            marker = "|cffdd5555x|r "
-        else
-            marker = "|cff999999?|r "
+        elseif status ~= false then
             untracked = untracked + 1
         end
 
@@ -965,17 +1069,56 @@ function MountData:GetStepLines(entry)
             text = "|cff5599ff|Hxalsreins:" .. kind .. ":" .. id .. "|h[" .. text .. "]|h|r"
         end
 
-        lines[#lines + 1] = marker .. text
-
         -- Where the quest actually starts. A bare quest name is useless if you
         -- don't know who gives it, and the game exposes no giver for a quest
         -- you haven't picked up - so this is written into the data.
-        if step.start and step.start ~= "" then
-            lines[#lines + 1] = "   |cff999999" .. step.start .. "|r"
+        local start = step.start
+        if start == "" then start = nil end
+
+        cards[#cards + 1] = { status = status, text = text, start = start }
+    end
+
+    return cards, done, #steps, untracked
+end
+
+-- The same steps flattened into one text block (marker + text, with the
+-- quest-start line indented underneath). Used wherever a single string is
+-- enough - the WIP tab and chat commands only need the counts.
+-- Returns: text, howManyDone, howManySteps, howManyUntrackable
+function MountData:GetStepLines(entry)
+    local cards, done, total, untracked = self:GetStepCards(entry)
+    if not cards then return nil, 0, 0, 0 end
+
+    local lines = {}
+    for i = 1, #cards do
+        local c = cards[i]
+        lines[#lines + 1] = self.StepMarker(c.status) .. " " .. c.text
+        if c.start then
+            lines[#lines + 1] = "   |cff999999" .. c.start .. "|r"
         end
     end
 
-    return table.concat(lines, "\n"), done, #steps, untracked
+    return table.concat(lines, "\n"), done, total, untracked
+end
+
+-- What share of players own this mount, 0-100, from the bundled MountsRarity
+-- library (libs/MountsRarity - GPLv3, data from Data for Azeroth; see
+-- LICENSE.md). If a newer copy of that library is installed by another addon
+-- or by itself, LibStub hands back the newest one, so this is never older
+-- than what we ship. nil when there's no figure for the mount.
+function MountData:GetRarity(entry)
+    if not entry or not entry.mountID then return nil end
+    local lib = LibStub and LibStub("MountsRarity-2.0", true)
+    if not lib then return nil end
+    return lib:GetRarityByID(entry.mountID)
+end
+
+-- "In progress" - at least one step done, but not every step. A mount with
+-- no written chain at all, or one that's either 0% or 100% done, doesn't
+-- count. Used by the tracker's WIP tab.
+function MountData:IsInProgress(entry)
+    local _, done, total = self:GetStepLines(entry)
+    return total and total > 0 and done and done > 0 and done < total
 end
 
 -- The quest's REAL name, straight from the game. Works for quests the player
