@@ -27,20 +27,19 @@ local Brand = addonTable.BrandStyle
 -- ── Update this block every release to match CHANGELOG.md ──────
 -- (no "version" field here on purpose - see note above)
 W.WHATS_NEW = {
-    date = "August 19, 2026",
+    date = "October 23, 2026",
     intro = "A mount tracker that shows what you can actually go and get, and how to get it.",
     sections = {
         { heading = "New", items = {
-            "The tracker - mounts you don't own yet that this character can actually get.",
-            "Click any mount for how to get it: who drops it, which vendor, which zone, the cost.",
-            "Step-by-step chains for 247 mounts, ticking themselves off against your character.",
-            "Search every mount in the game, tagged so nothing ever just vanishes from the list.",
-            "Raids and Dungeons tabs, grouped by the instance each mount drops in.",
-            "A zone filter that follows you, and your collection in its own window.",
+            "A Zone tab replaces the old zone checkbox, and a WIP tab keeps every mount you've started in one place.",
+            "Mount details are laid out as cards - one for how to get it and one for each step.",
+            "Set Waypoint on vendor mounts, and the percent of players who own each mount.",
+            "A count on the zone icon showing how many mounts you can still get in this zone.",
+            "Works with Xal's Keep - it takes over the minimap button and zone alert.",
         } },
         { heading = "Good to know", items = {
-            "Step-by-step chains currently cover Midnight, The War Within and Dragonflight.",
-            "Older mounts still show where they come from - full walkthroughs are coming.",
+            "Everything has a fresh look - new colors, new fonts, text-style buttons.",
+            "Step-by-step chains now cover every expansion.",
         } },
     },
 }
@@ -100,7 +99,7 @@ local function BuildFrame(installedVersion)
     end
 
     Brand.ApplyBackground(f)
-    Brand.DrawBorder(f)
+    Brand.DrawBorder(f, 1)
 
     local data = W.WHATS_NEW
     Brand.Title(f, "What's New", 26, "TOP", f, "TOP", 0, -24)
@@ -108,15 +107,15 @@ local function BuildFrame(installedVersion)
     -- "installedVersion" is the REAL live version (from CheckAndShow), not a
     -- hand-typed field - it always matches whatever actually got tagged.
     local verLine = Brand.FS(f, "Version " .. installedVersion .. (data.date and ("  ·  " .. data.date) or ""),
-        "Fonts\\ARIALN.TTF", 12, "", Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+        Brand.BODY_FONT_PATH, 12, "", Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
     verLine:SetPoint("TOP", f, "TOP", 0, -58)
     verLine:SetJustifyH("CENTER")
 
-    Brand.DrawDivider(f, 30, 78, FW - 60)
+    Brand.DrawHeaderDivider(f, 30, 78, FW - 60)
 
     local y = 92
     if data.intro and data.intro ~= "" then
-        local intro = Brand.FS(f, data.intro, "Fonts\\ARIALN.TTF", 12, "", 0.85, 0.85, 0.85)
+        local intro = Brand.FS(f, data.intro, Brand.BODY_FONT_PATH, 12, "", 0.85, 0.85, 0.85)
         intro:SetPoint("TOPLEFT", f, "TOPLEFT", 30, -y)
         intro:SetWidth(FW - 60)
         intro:SetJustifyH("LEFT")
@@ -125,13 +124,13 @@ local function BuildFrame(installedVersion)
     end
 
     for _, section in ipairs(data.sections or {}) do
-        local head = Brand.FS(f, section.heading, "Fonts\\ARIALN.TTF", 13, "OUTLINE",
-            Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+        local head = Brand.FS(f, section.heading, Brand.BODY_FONT_PATH, 13, "OUTLINE",
+            Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
         head:SetPoint("TOPLEFT", f, "TOPLEFT", 30, -y)
         y = y + 20
 
         for _, item in ipairs(section.items or {}) do
-            local bullet = Brand.FS(f, "-  " .. item, "Fonts\\ARIALN.TTF", 12, "",
+            local bullet = Brand.FS(f, "-  " .. item, Brand.BODY_FONT_PATH, 12, "",
                 Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
             bullet:SetPoint("TOPLEFT", f, "TOPLEFT", 36, -y)
             bullet:SetWidth(FW - 76)
