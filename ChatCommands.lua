@@ -159,6 +159,57 @@ local function PrintZoneDump(query)
     end
 end
 
+-- Diagnostic (2026-10-01): which vendor mounts' "Set Waypoint" button
+-- actually works. Vendor names only ever exist in Blizzard's own runtime
+-- source text - there's no static list to check this against outside the
+-- client - so this is the only way to find out which vendors are missing
+-- from VendorLocations.lua (or genuinely ambiguous) without opening every
+-- vendor mount's detail popup by hand. Each name is only reported once,
+-- even if several mounts share the same vendor.
+local function PrintVendorDump()
+    local roster = MountData:Ensure()
+    if not roster then
+        Say("couldn't read the mount journal yet - try again in a moment.")
+        return
+    end
+
+    -- Same lookup the detail popup does - vendor name AND the mount's zone -
+    -- so this reports what players will actually see. Each vendor/zone pair
+    -- is reported once, even if several mounts share it.
+    local seen, missing, ambiguous, matched = {}, {}, {}, 0
+    for i = 1, #roster do
+        local vendor = MountData:GetSourceVendor(roster[i])
+        if vendor then
+            local zone = MountData:GetSourceZone(roster[i])
+            local label = vendor .. (zone and (" (" .. zone .. ")") or "")
+            if not seen[label] then
+                seen[label] = true
+                local locs = MountData:VendorLocationFor(vendor, zone)
+                if #locs == 1 then
+                    matched = matched + 1
+                elseif #locs == 0 then
+                    missing[#missing + 1] = label
+                else
+                    ambiguous[#ambiguous + 1] = label .. " - " .. #locs .. " candidates"
+                end
+            end
+        end
+    end
+
+    Say(matched .. " vendor name(s) matched, " .. #missing .. " missing, " ..
+        #ambiguous .. " ambiguous.")
+    if #missing > 0 then
+        Say(WHITE .. "Missing from VendorLocations.lua:" .. RESET)
+        table.sort(missing)
+        for i = 1, #missing do Say("  " .. missing[i]) end
+    end
+    if #ambiguous > 0 then
+        Say(WHITE .. "Ambiguous (more than one candidate):" .. RESET)
+        table.sort(ambiguous)
+        for i = 1, #ambiguous do Say("  " .. ambiguous[i]) end
+    end
+end
+
 -- Diagnostic: dumps every raw tooltip line the client generates for a mount's
 -- summon spell, with its line type and colour. This is how we find out what
 -- class/race/profession restrictions actually look like in real data, rather
@@ -475,6 +526,8 @@ function ChatCommands:Handle(input)
         PrintLines(rest)
     elseif cmd == "zonedump" then
         PrintZoneDump(rest)
+    elseif cmd == "vendordump" then
+        PrintVendorDump()
     elseif cmd == "options" or cmd == "config" or cmd == "settings" then
         addonTable.SettingsPanel:Open()
     else
