@@ -11,6 +11,7 @@ std = "lua51"
 globals = {
     "XalsReinsDB",
     "XalsReinsCharDB",
+    "XalsVendorLocations", -- set by VendorLocations.lua, read by MountData.lua
     "StaticPopupDialogs", -- a real mutable table addons add popup entries to
     "SLASH_XALSREINS1",
     "SlashCmdList",
@@ -18,6 +19,7 @@ globals = {
 
 -- Read-only: real WoW client API/globals.
 read_globals = {
+    "XalsKeep", -- Xal's Keep hub API, guarded with a nil-check before use
     "CreateFrame",
     "UIParent",
     "PixelUtil",
@@ -68,6 +70,11 @@ read_globals = {
     "hooksecurefunc",
     "wipe",
     "tinsert",
+    "GetCursorPosition",
+    "TomTom", -- optional third-party addon, guarded with a nil-check before use
+    "C_Map",
+    "C_SuperTrack",
+    "UiMapPoint",
 }
 
 -- Textures/backdrop tables and long chained SetPoint calls read as "unused
