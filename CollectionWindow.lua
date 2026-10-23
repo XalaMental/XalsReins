@@ -37,7 +37,7 @@ local function AcquireRow(index)
 
     local hl = row:CreateTexture(nil, "BACKGROUND")
     hl:SetAllPoints()
-    hl:SetColorTexture(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 0.16)
+    hl:SetColorTexture(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 0.16)
     hl:Hide()
     row.highlight = hl
 
@@ -157,7 +157,7 @@ local function BuildWindow()
     end
 
     Brand.ApplyBackground(f)
-    Brand.DrawBorder(f)
+    Brand.DrawBorder(f, 1)
 
     Brand.Title(f, "My Collection", 22, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 4)
 
@@ -165,14 +165,9 @@ local function BuildWindow()
         Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
     countText:SetPoint("TOP", f, "TOP", 0, -48)
 
-    -- Native edit box per the widget rule - only buttons/checkboxes/borders are
-    -- custom brand art.
-    searchBox = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-    searchBox:SetHeight(20)
+    searchBox = Brand.MakeEditBox(f, WIN_W - (Brand.SAFE_MARGIN + 14) - (Brand.SAFE_MARGIN + 4), 20)
     searchBox:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 14, -70)
-    searchBox:SetPoint("TOPRIGHT", f, "TOPRIGHT", -Brand.SAFE_MARGIN - 4, -70)
     searchBox:SetAutoFocus(false)
-    searchBox:SetFontObject("GameFontHighlightSmall")
     searchBox:SetScript("OnTextChanged", function(self)
         filterText = self:GetText() or ""
         Collection:Refresh()
@@ -182,7 +177,7 @@ local function BuildWindow()
         self:ClearFocus()
     end)
 
-    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 98, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawHeaderDivider(f, Brand.SAFE_MARGIN, 98, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     scrollFrame = CreateFrame("ScrollFrame", "XalsReinsCollectionScroll", f)
     scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + ROW_INSET, -108)
@@ -203,7 +198,7 @@ local function BuildWindow()
     scrollThumb:SetWidth(8)
     scrollThumb:SetThumbTexture("Interface\\Buttons\\WHITE8x8")
     local scrollThumbTex = scrollThumb:GetThumbTexture()
-    scrollThumbTex:SetVertexColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
+    scrollThumbTex:SetVertexColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
     scrollThumbTex:SetWidth(8)
 
     local suppressScrollCallback = false
