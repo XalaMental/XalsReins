@@ -52,14 +52,14 @@ local function BuildWindow()
     end
 
     Brand.ApplyBackground(f)
-    Brand.DrawBorder(f)
+    Brand.DrawBorder(f, 1)
 
     Brand.Title(f, "Xal's Reins", 24, "TOP", f, "TOP", 0, -Brand.SAFE_MARGIN - 6)
 
     local discord = Brand.MakeDiscordLink(f)
     discord:SetPoint("TOPRIGHT", f, "TOPRIGHT", -Brand.SAFE_MARGIN, -Brand.SAFE_MARGIN)
 
-    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 66, WIN_W - (Brand.SAFE_MARGIN * 2))
+    Brand.DrawHeaderDivider(f, Brand.SAFE_MARGIN, 66, WIN_W - (Brand.SAFE_MARGIN * 2))
 
     local NOTE_TOP = 84 -- fixed - clears the title/discord-link/divider chrome above it
     local note = Brand.FS(f, "Settings arrive with the mount list window. For now, "
@@ -71,59 +71,83 @@ local function BuildWindow()
     note:SetJustifyH("LEFT")
     note:SetWordWrap(true)
 
-    -- Minimap button toggle. Brand checkbox, not UICheckButtonTemplate, and
-    -- driven by cb.OnToggle rather than an OnClick script - the brand
-    -- checkbox uses OnClick internally to flip its own state first. Anchored
-    -- off note's own bottom (a real relative chain) instead of a fixed
-    -- frame position.
-    local CHECK_SIZE = 22
-    local mmCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
-    mmCheck:SetPoint("TOPLEFT", note, "BOTTOMLEFT", 0, -20)
+    -- With Xal's Keep installed, the rook is the one minimap button and the
+    -- one zone alert for the whole collection suite (and it has no
+    -- last-mount reminder), so this addon's own two toggles would do nothing.
+    -- Point at where those settings live instead of showing dead controls.
+    if XalsKeep then
+        local keepNote = Brand.FS(f, "Xal's Keep is installed, so the minimap button "
+            .. "and the zone alert now live in the Keep. Change them in the Keep's settings.",
+            Brand.BODY_FONT_PATH, 13, nil, Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+        keepNote:SetPoint("TOPLEFT", note, "BOTTOMLEFT", 0, -20)
+        keepNote:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 6, 0)
+        keepNote:SetJustifyH("LEFT")
+        keepNote:SetWordWrap(true)
 
-    local mmLabel = Brand.FS(f, "Show the minimap button", Brand.BODY_FONT_PATH, 14, nil,
-        Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-    mmLabel:SetPoint("LEFT", mmCheck, "RIGHT", 8, 0)
-    mmLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
-    mmLabel:SetJustifyH("LEFT")
-    mmLabel:SetWordWrap(true)
+        local close = Brand.MakeCloseButton(f, function() f:Hide() end)
+        close:SetPoint("TOP", keepNote, "BOTTOM", 0, -Brand.SAFE_MARGIN)
 
-    local hidden = type(XalsReinsDB) == "table" and XalsReinsDB.minimap and XalsReinsDB.minimap.hide
-    mmCheck:SetChecked(not hidden)
-    mmCheck.OnToggle = function(self)
-        addonTable.MinimapButton:SetShown(self:GetChecked() and true or false)
-    end
-
-    -- Zone-alert icon toggle. When off, the floating saddle icon only shows
-    -- up while the current zone has something acquirable, instead of
-    -- staying up all the time to keep left-click's "last mount worked on"
-    -- reachable.
-    local zoneCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
-    zoneCheck:SetPoint("TOPLEFT", mmCheck, "BOTTOMLEFT", 0, -16)
-
-    local zoneLabel = Brand.FS(f, "Show reminder for last mount worked on", Brand.BODY_FONT_PATH, 14, nil,
-        Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-    zoneLabel:SetPoint("LEFT", zoneCheck, "RIGHT", 8, 0)
-    zoneLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
-    zoneLabel:SetJustifyH("LEFT")
-    zoneLabel:SetWordWrap(true)
-
-    zoneCheck:SetChecked(type(XalsReinsDB) == "table" and XalsReinsDB.showLastMountReminder ~= false)
-    zoneCheck.OnToggle = function(self)
-        if type(XalsReinsDB) == "table" then
-            XalsReinsDB.showLastMountReminder = self:GetChecked() and true or false
+        -- Height from where the content actually ends, not summed string
+        -- heights (see MountDetail.lua for why).
+        local top, bottom = f:GetTop(), close:GetBottom()
+        if top and bottom then
+            f:SetHeight((top - bottom) + Brand.SAFE_MARGIN)
         end
-        if addonTable.ZoneAlertIcon then addonTable.ZoneAlertIcon:UpdateVisibility() end
+    else
+        -- Minimap button toggle. Brand checkbox, not UICheckButtonTemplate,
+        -- and driven by cb.OnToggle rather than an OnClick script - the
+        -- brand checkbox uses OnClick internally to flip its own state
+        -- first. Anchored off note's own bottom (a real relative chain)
+        -- instead of a fixed frame position.
+        local CHECK_SIZE = 22
+        local mmCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
+        mmCheck:SetPoint("TOPLEFT", note, "BOTTOMLEFT", 0, -20)
+
+        local mmLabel = Brand.FS(f, "Show the minimap button", Brand.BODY_FONT_PATH, 14, nil,
+            Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+        mmLabel:SetPoint("LEFT", mmCheck, "RIGHT", 8, 0)
+        mmLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
+        mmLabel:SetJustifyH("LEFT")
+        mmLabel:SetWordWrap(true)
+
+        local hidden = type(XalsReinsDB) == "table" and XalsReinsDB.minimap and XalsReinsDB.minimap.hide
+        mmCheck:SetChecked(not hidden)
+        mmCheck.OnToggle = function(self)
+            addonTable.MinimapButton:SetShown(self:GetChecked() and true or false)
+        end
+
+        -- Zone-alert icon toggle. When off, the floating saddle icon only
+        -- shows up while the current zone has something acquirable, instead
+        -- of staying up all the time to keep left-click's "last mount worked
+        -- on" reachable.
+        local zoneCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
+        zoneCheck:SetPoint("TOPLEFT", mmCheck, "BOTTOMLEFT", 0, -16)
+
+        local zoneLabel = Brand.FS(f, "Show reminder for last mount worked on", Brand.BODY_FONT_PATH, 14, nil,
+            Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
+        zoneLabel:SetPoint("LEFT", zoneCheck, "RIGHT", 8, 0)
+        zoneLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
+        zoneLabel:SetJustifyH("LEFT")
+        zoneLabel:SetWordWrap(true)
+
+        zoneCheck:SetChecked(type(XalsReinsDB) == "table" and XalsReinsDB.showLastMountReminder ~= false)
+        zoneCheck.OnToggle = function(self)
+            if type(XalsReinsDB) == "table" then
+                XalsReinsDB.showLastMountReminder = self:GetChecked() and true or false
+            end
+            if addonTable.ZoneAlertIcon then addonTable.ZoneAlertIcon:UpdateVisibility() end
+        end
+
+        local close = Brand.MakeCloseButton(f, function() f:Hide() end)
+        close:SetPoint("TOP", zoneCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
+
+        -- Total height, added up directly from each piece's own real size -
+        -- not measured back off the frame after the fact. This panel's text
+        -- is all static (never varies at runtime), so this only ever needs
+        -- computing once at build time.
+        f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE + 16 + CHECK_SIZE
+            + Brand.SAFE_MARGIN + 20 + Brand.SAFE_MARGIN)
     end
-
-    local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-    close:SetPoint("TOP", zoneCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
-
-    -- Total height, added up directly from each piece's own real size - not
-    -- measured back off the frame after the fact. This panel's text is all
-    -- static (never varies at runtime), so this only ever needs computing
-    -- once at build time.
-    f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE + 16 + CHECK_SIZE
-        + Brand.SAFE_MARGIN + 20 + Brand.SAFE_MARGIN)
 
     f:Hide()
     window = f
@@ -139,7 +163,7 @@ local function BuildCanvasPanel()
     panel.name = PANEL_NAME
 
     local title = Brand.FS(panel, PANEL_NAME, Brand.TITLE_FONT_PATH, 22, nil,
-        Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
     title:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
 
     local blurb = Brand.FS(panel, "A mount tracker that shows every mount in the game "
