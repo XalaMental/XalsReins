@@ -1,5 +1,29 @@
 # Xal's Reins - Changelog
 
+## 1.4.0 - October 23, 2026
+
+---
+
+This one's a big update. I wanted Reins to feel like the rest of the Xal family, so everything got a fresh coat of paint - new colors, new fonts, and cleaner buttons.
+
+While I was in there I reworked how you find things. The old "only show this zone" checkbox is now a proper Zone tab, and there's a new WIP tab that keeps every mount you've already started in one place so you can pick right back up. Mount details are laid out as cards now - one for how to get it and one for each step - so nothing runs together, and for mounts bought from a vendor you can set a waypoint straight to them. You'll also see what share of players own each mount, and if you use Xal's Keep, Reins slots right into it.
+
+Thanks for being part of the Xal family.
+
+### 🆕 New
+
+- **A Zone tab** - shows just the mounts you can get in the zone you're standing in. It replaces the old "only show mounts from this zone" checkbox.
+- **A WIP tab** - every mount you've started working on, each as its own card with how far along you are.
+- **Cards in mount details** - how to get it, and each step along the way, now sit in their own boxes that grow to fit.
+- **Set Waypoint on vendor mounts** - puts a pin on your map (or a TomTom arrow, if you use it) at the vendor.
+- **Mount rarity** - mount details show what percent of players own that mount.
+- **A count on the zone icon** - a small number showing how many mounts you can still get in your current zone.
+- **Xal's Keep support** - if you have Xal's Keep installed, Reins opens inside it and the Keep's single icon takes over the minimap button and zone alert.
+
+### ⚙️ Changed
+
+- A fresh look across every window - new colors, new fonts, text-style buttons, and bigger tab names.
+
 ## 1.3.0 - September 13, 2026
 
 ---
