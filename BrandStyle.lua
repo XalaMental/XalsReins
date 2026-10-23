@@ -20,9 +20,38 @@ addonTable.BrandStyle = {}
 local Brand = addonTable.BrandStyle
 
 -- ── Colours (r, g, b) ─────────────────────────────────────────
-Brand.ACCENT = { 0.72, 0.30, 0.0 }    -- deep, dark, burnt orange (was warm bronze-gold, 2026-09-02 rebrand)
-Brand.GOLD   = { 0.60, 0.47, 0.30 }   -- secondary/body text tone
+-- Brand.ACCENT is no longer used anywhere in this addon's UI - kept defined
+-- (not deleted) only in case something external still references it, same
+-- as Xpedited Routes kept its own old accent constant around unused rather
+-- than deleting it outright.
+Brand.ACCENT = { 0.72, 0.30, 0.0 }    -- deep, dark, burnt orange - RETIRED 2026-09-27, see Brand.HEADER_COLOR
+Brand.GOLD   = { 0.60, 0.47, 0.30 }   -- secondary/body text tone - unaffected, a separate muted body-copy tone
 Brand.BG     = { 0.03, 0.028, 0.06, 1 } -- dark indigo leaning purple, #08070f (was near-black, 2026-09-02 rebrand)
+
+-- #681417, a dark brick red - the ONE accent color for this addon, no
+-- exceptions (confirmed 2026-09-25, family-wide): window title text, the
+-- header divider under it, section headers within a page, action links/
+-- buttons, checkbox/edit-box borders, tab labels, the zone-alert icon's
+-- glow - literally everywhere the old separate orange (Brand.ACCENT) was
+-- used. There is no carved-out exception anywhere in this addon for a
+-- second accent color.
+Brand.HEADER_COLOR = { 0.4078, 0.0784, 0.0902 }
+
+-- Confirmed color for every OTHER divider (section dividers within a page,
+-- list dividers) and panel/window edges - #101020, a near-black indigo.
+-- Was (0.16, 0.12, 0.05), a muted brown, for dividers, and orange for
+-- borders, before this. Family-wide rollout confirmed 2026-09-20. Distinct
+-- concept from HEADER_COLOR above - this is not an accent color, it's the
+-- structural line/edge color.
+Brand.DIVIDER_COLOR = { 0.0627, 0.0627, 0.1255 }
+
+-- #323264, a muted blue-gray - confirmed 2026-09-20, family-wide. For an
+-- UNSELECTED entry in a set of tabs/sidebar links where one is always the
+-- current selection (e.g. this addon's Zone/All/Raids/Dungeons tabs) - the
+-- selected one uses HEADER_COLOR above, everything else this. Was HEADER_
+-- COLOR for both states before, which read as "every tab is active at
+-- once" instead of showing one clear current tab.
+Brand.SIDEBAR_UNSELECTED = { 0.196, 0.196, 0.392 }
 Brand.LINE_THICKNESS = 2 -- minimum for ANY border/divider - never go below this
 -- Minimum gap between a panel's true outer edge and the nearest button/text
 -- (close buttons especially). DrawBorder()'s line occupies out to 8px in
@@ -59,94 +88,49 @@ function Brand.FS(parent, text, fontPath, size, flags, r, g, b)
 end
 
 -- ── Font paths ────────────────────────────────────────────────
--- Header/title font: Simply Sans Bold (bundled, SIL OFL). Body/label font:
--- Fira Sans Medium (bundled, SIL OFL). Both must ship in this addon's own
--- Fonts/ folder (Fonts/CustomFont.ttf, Fonts/FiraSans-Medium.ttf, plus their
--- two LICENSE.txt files) - copy them from any existing addon that already
--- has them (e.g. XalsQuestCompass/Fonts/) rather than reusing a stock
--- Blizzard font. NOT Fonts\MORPHEUS.TTF/ARIALN.TTF - those were this
--- template's stale default until 2026-08-14, caught live in-game on Xal's
--- Mumblings (wrong title font, no bundled fonts at all).
-Brand.TITLE_FONT_PATH = "Interface\\AddOns\\XalsReins\\Fonts\\CustomFont.ttf"
-Brand.BODY_FONT_PATH = "Interface\\AddOns\\XalsReins\\Fonts\\FiraSans-Medium.ttf"
+-- Header/title font: Cinzel Bold (bundled, SIL OFL). Body/label font: Inter
+-- Regular/SemiBold (bundled, SIL OFL) - current go-forward pairing,
+-- confirmed 2026-09-19, matching Quest Compass's floating tracker window.
+-- Must ship in this addon's own Fonts/ folder (Fonts/Cinzel-Bold.ttf,
+-- Fonts/Inter-Regular.ttf, Fonts/Inter-SemiBold.ttf, plus their
+-- LICENSE.txt files). NOT Fonts\CustomFont.ttf/FiraSans-Medium.ttf (Simply
+-- Sans/Fira Sans) - that was this addon's pairing until this update;
+-- those files stay bundled (LICENSE.md still covers them) but are no
+-- longer referenced by any live code path.
+Brand.TITLE_FONT_PATH = "Interface\\AddOns\\XalsReins\\Fonts\\Cinzel-Bold.ttf"
+Brand.BODY_FONT_PATH = "Interface\\AddOns\\XalsReins\\Fonts\\Inter-Regular.ttf"
+Brand.BODY_FONT_PATH_SEMIBOLD = "Interface\\AddOns\\XalsReins\\Fonts\\Inter-SemiBold.ttf"
 
--- ── Title()  ─ the branded Simply-Sans-Bold title treatment, with its
--- drop-shadow layer, in one call. Returns the visible (front) fontstring.
+-- ── Title()  ─ the branded title treatment, with its drop-shadow layer, in
+-- one call. Returns the visible (front) fontstring. Front layer now
+-- Brand.HEADER_COLOR (was Brand.ACCENT) - family-wide rollout, 2026-09-20.
 function Brand.Title(parent, text, size, anchorPoint, relTo, relPoint, x, y)
     local shadow = Brand.FS(parent, text, Brand.TITLE_FONT_PATH, size, "OUTLINE", 0, 0, 0)
     PixelUtil.SetPoint(shadow, anchorPoint, relTo, relPoint, x + 4, y - 4)
     shadow:SetJustifyH("CENTER")
 
     local title = Brand.FS(parent, text, Brand.TITLE_FONT_PATH, size, "OUTLINE",
-        Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
     PixelUtil.SetPoint(title, anchorPoint, relTo, relPoint, x, y)
     title:SetJustifyH("CENTER")
     return title
 end
 
--- ── MakeButton()  ─ Xal's Compendium's flat button (the confirmed standard,
--- verified 2026-08-09 straight from Options.lua's MakeFlatButton): thin
--- border, semi-transparent dark fill, no bevel/gradient - reads cleanly
--- even in a horizontal row, which is exactly what Courier's beveled version
--- didn't do. Border color changed 2026-08-09 from a plain light grey to the
--- same accent gold as the panel border, so buttons read as part of the same
--- branded frame instead of a mismatched grey outline. Selected vs. normal
--- state is carried by fill brightness AND label color (see SetSelected below).
--- Call btn:SetSelected(true/false) for a brighter fill + white label (tabs).
-local BTN_BORDER = { Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1 }
-local BTN_BORDER_SELECTED = { Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1 }
--- Unselected label color - same as Brand.ACCENT now (2026-09-02 rebrand),
--- matching the standard set on Routes/Quest Compass/AutoMac rather than its
--- own separate amber.
-local BTN_LABEL_UNSELECTED = Brand.ACCENT
+-- Unselected label color - Brand.HEADER_COLOR, the one accent color, no
+-- exceptions (confirmed 2026-09-25 - the old separate orange is retired;
+-- every call site that used it now uses this instead).
+local BTN_LABEL_UNSELECTED = Brand.HEADER_COLOR
 
+-- ── MakeButton()  ─ text-link style (confirmed 2026-08-17/18, originated on
+-- Xal's Xpedited Routes - "I don't like the blocky look... the link style
+-- looks better"). Supersedes the earlier boxed/bordered/filled button
+-- entirely - plain text, no fill, no border. Selected vs. normal state is
+-- carried entirely by label color/brightness. Call btn:SetSelected(true/
+-- false) to toggle white (selected) vs. the unselected amber-orange.
 function Brand.MakeButton(parent, text, w, h, onClick)
-    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    local btn = CreateFrame("Button", nil, parent)
     PixelUtil.SetSize(btn, w, h)
-    -- Fill only - no backdrop edge. Blizzard's backdrop-edge system computes
-    -- each side's thickness independently and isn't guaranteed to come out
-    -- symmetric at a non-integer UI Scale (confirmed 2026-08-09: it was
-    -- rendering every button's left/right border at visibly different
-    -- thickness, uniformly, at 71% scale). Border is hand-drawn below
-    -- instead, using the same pixel-snapped technique as Brand.DrawBorder.
-    btn:SetBackdrop({
-        bgFile = "Interface\\Buttons\\WHITE8x8",
-    })
-    btn:SetBackdropColor(0.1, 0.1, 0.1, 0.6)
 
-    local thick = Brand.LINE_THICKNESS
-    local borderTop = btn:CreateTexture(nil, "ARTWORK")
-    PixelUtil.SetPoint(borderTop, "TOPLEFT", btn, "TOPLEFT", 0, 0)
-    PixelUtil.SetPoint(borderTop, "TOPRIGHT", btn, "TOPRIGHT", 0, 0)
-    PixelUtil.SetHeight(borderTop, thick)
-
-    local borderBottom = btn:CreateTexture(nil, "ARTWORK")
-    PixelUtil.SetPoint(borderBottom, "BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
-    PixelUtil.SetPoint(borderBottom, "BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
-    PixelUtil.SetHeight(borderBottom, thick)
-
-    local borderLeft = btn:CreateTexture(nil, "ARTWORK")
-    PixelUtil.SetPoint(borderLeft, "TOPLEFT", btn, "TOPLEFT", 0, 0)
-    PixelUtil.SetPoint(borderLeft, "BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
-    PixelUtil.SetWidth(borderLeft, thick)
-
-    local borderRight = btn:CreateTexture(nil, "ARTWORK")
-    PixelUtil.SetPoint(borderRight, "TOPRIGHT", btn, "TOPRIGHT", 0, 0)
-    PixelUtil.SetPoint(borderRight, "BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
-    PixelUtil.SetWidth(borderRight, thick)
-
-    local function SetBorderColor(r, g, b, a)
-        borderTop:SetColorTexture(r, g, b, a)
-        borderBottom:SetColorTexture(r, g, b, a)
-        borderLeft:SetColorTexture(r, g, b, a)
-        borderRight:SetColorTexture(r, g, b, a)
-    end
-    SetBorderColor(BTN_BORDER[1], BTN_BORDER[2], BTN_BORDER[3], BTN_BORDER[4])
-
-    -- Label starts in the unselected amber-orange and switches to white via
-    -- SetSelected below - gives an at-a-glance read of which tab is active
-    -- instead of relying on the subtle fill-brightness difference alone.
-    -- Confirmed 2026-08-09.
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     label:SetPoint("CENTER")
     label:SetText(text)
@@ -154,48 +138,75 @@ function Brand.MakeButton(parent, text, w, h, onClick)
     btn.label = label
 
     btn:SetScript("OnEnter", function(self)
-        if not self.selected then self:SetBackdropColor(0.18, 0.18, 0.18, 0.75) end
+        if not self.selected then label:SetTextColor(1, 1, 1, 1) end
     end)
     btn:SetScript("OnLeave", function(self)
-        if not self.selected then self:SetBackdropColor(0.1, 0.1, 0.1, 0.6) end
+        if not self.selected then
+            label:SetTextColor(BTN_LABEL_UNSELECTED[1], BTN_LABEL_UNSELECTED[2], BTN_LABEL_UNSELECTED[3], 1)
+        end
     end)
     if onClick then btn:SetScript("OnClick", onClick) end
 
     function btn:SetSelected(selected)
         self.selected = selected
         if selected then
-            self:SetBackdropColor(0.22, 0.22, 0.22, 0.85)
-            SetBorderColor(BTN_BORDER_SELECTED[1], BTN_BORDER_SELECTED[2], BTN_BORDER_SELECTED[3], BTN_BORDER_SELECTED[4])
             label:SetTextColor(1, 1, 1, 1)
         else
-            self:SetBackdropColor(0.1, 0.1, 0.1, 0.6)
-            SetBorderColor(BTN_BORDER[1], BTN_BORDER[2], BTN_BORDER[3], BTN_BORDER[4])
             label:SetTextColor(BTN_LABEL_UNSELECTED[1], BTN_LABEL_UNSELECTED[2], BTN_LABEL_UNSELECTED[3], 1)
         end
     end
 
-    -- Exposed so call sites that need a one-off custom border color (e.g. a
-    -- destructive/danger-styled button) have a real hook, same idea as
-    -- SetSelected above - there should be only ONE button implementation
-    -- per addon; every call site drives it through these methods rather
-    -- than hand-rolling its own border.
+    -- Was a border-color hook before the box existed - kept as the same
+    -- method name/signature so call sites don't need touching, just now
+    -- tints the label itself instead of a border that no longer exists.
     function btn:SetBorderColor(r, g, bC, a)
-        SetBorderColor(r, g, bC, a)
+        label:SetTextColor(r, g, bC, a)
     end
 
     return btn
 end
 
--- ── DrawBorder()  ─ single clean accent-color line around a frame.
--- Deliberately simple - no corner ornaments or tick marks. Each side is
--- anchored to BOTH ends of that edge (not a fixed x/y/w/h), so it auto-
--- stretches if the frame resizes later - important for anything that grows
--- or shrinks at runtime (a list that adds/removes rows, etc.), not just
--- fixed-size splash screens.
+-- ── MakeLinkButton()  ─ a second, deliberately plain button style for
+-- inline quick-toggles and as the shared building block for other helpers
+-- below (MakeDiscordLink, ShowContextMenu) - no border/fill. Hover feedback
+-- is wired via HookScript, not SetScript, so a call site can still add its
+-- own OnEnter/OnLeave (e.g. a tooltip) without one silently overwriting the
+-- other.
+function Brand.MakeLinkButton(parent)
+    local btn = CreateFrame("Button", nil, parent)
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    label:SetFont(Brand.BODY_FONT_PATH, 12, "")
+    label:SetPoint("CENTER")
+    btn.label = label
+
+    function btn:SetLabel(text, r, g, b)
+        label:SetText(text)
+        if r then label:SetTextColor(r, g, b, 1) end
+        btn.baseColor = { r or Brand.HEADER_COLOR[1], g or Brand.HEADER_COLOR[2], b or Brand.HEADER_COLOR[3] }
+    end
+
+    btn:HookScript("OnEnter", function() label:SetTextColor(1, 1, 1, 1) end)
+    btn:HookScript("OnLeave", function()
+        local c = btn.baseColor or Brand.HEADER_COLOR
+        label:SetTextColor(c[1], c[2], c[3], 1)
+    end)
+
+    return btn
+end
+
+-- ── DrawBorder()  ─ single clean line around a frame, in Brand.DIVIDER_COLOR
+-- (not Brand.ACCENT - 2026-09-20, matches the confirmed subtle panel-edge
+-- look instead of a bright orange border on every window). Deliberately
+-- simple - no corner ornaments or tick marks. Each side is anchored to BOTH
+-- ends of that edge (not a fixed x/y/w/h), so it auto-stretches if the
+-- frame resizes later - important for anything that grows or shrinks at
+-- runtime (a list that adds/removes rows, etc.), not just fixed-size
+-- splash screens. Call sites pass inset=1 for an outer window edge, inset=0
+-- for an inner card/popup - the bare default below is only a fallback.
 function Brand.DrawBorder(f, inset)
     inset = inset or 6
     local thick = Brand.LINE_THICKNESS
-    local r, g, b = Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3]
+    local r, g, b = Brand.DIVIDER_COLOR[1], Brand.DIVIDER_COLOR[2], Brand.DIVIDER_COLOR[3]
 
     local top = f:CreateTexture(nil, "ARTWORK")
     PixelUtil.SetPoint(top, "TOPLEFT", f, "TOPLEFT", inset, -inset)
@@ -225,9 +236,34 @@ function Brand.DrawBorder(f, inset)
 end
 
 -- ── DrawDivider()  ─ the thin section-separator line used between content
--- blocks (feature lists, header bars, etc.)
+-- blocks (feature lists, header bars, etc.) - Brand.DIVIDER_COLOR (was a
+-- muted brown, 2026-09-20). Not for the one divider directly under a
+-- window's title - see DrawHeaderDivider below.
 function Brand.DrawDivider(parent, x, y, width)
-    return Brand.T(parent, x, y, width, Brand.LINE_THICKNESS, 0.16, 0.12, 0.05, 1)
+    return Brand.T(parent, x, y, width, Brand.LINE_THICKNESS,
+        Brand.DIVIDER_COLOR[1], Brand.DIVIDER_COLOR[2], Brand.DIVIDER_COLOR[3], 1)
+end
+
+-- ── DrawHeaderDivider()  ─ same as DrawDivider, but in Brand.HEADER_COLOR -
+-- used ONLY for the single divider directly under a window's main title,
+-- never for section dividers within a page (those stay DrawDivider above).
+function Brand.DrawHeaderDivider(parent, x, y, width)
+    return Brand.T(parent, x, y, width, Brand.LINE_THICKNESS,
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
+end
+
+-- ── ApplyCardBackground()  ─ the fill behind a bordered card, a few shades
+-- lighter than the window's own background (#08070f -> #151426) so a card
+-- reads as a raised box instead of just an outline. Sits one sublevel
+-- below the default BACKGROUND layer so a card's hover highlight (drawn at
+-- the default sublevel) still lands on top of it.
+Brand.CARD_BG = { 0.082, 0.078, 0.149, 1 }
+
+function Brand.ApplyCardBackground(f)
+    local bg = f:CreateTexture(nil, "BACKGROUND", nil, -1)
+    bg:SetAllPoints()
+    bg:SetColorTexture(Brand.CARD_BG[1], Brand.CARD_BG[2], Brand.CARD_BG[3], Brand.CARD_BG[4])
+    return bg
 end
 
 -- ── ApplyBackground()  ─ the standard opaque near-black frame background.
@@ -264,7 +300,7 @@ function Brand.MakeCheckbox(parent, size)
     bg:SetColorTexture(0.1, 0.1, 0.1, 0.6)
 
     local thick = Brand.LINE_THICKNESS
-    local r, g, b = Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3]
+    local r, g, b = Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3]
 
     local borderTop = cb:CreateTexture(nil, "ARTWORK")
     PixelUtil.SetPoint(borderTop, "TOPLEFT", cb, "TOPLEFT", 0, 0)
@@ -366,21 +402,34 @@ StaticPopupDialogs["XALSREINS_COPY_URL"] = {
     preferredIndex = 3,
 }
 
+-- Icon-only Discord mark (official brand asset, white symbol variant), shown
+-- next to the text link so it pops instead of reading as plain text -
+-- confirmed 2026-09-19. Ships Textures/DiscordIcon.png in this addon's own
+-- folder, copied from D:\WoW_Addons\Dev\Assets\Icons\Discord-Symbol-White_64.png
+-- (already resized to a game-ready size - not re-sourced, not recolored/
+-- distorted per Discord's brand guidelines).
+Brand.DISCORD_ICON = "Interface\\AddOns\\XalsReins\\Textures\\DiscordIcon.png"
+
 function Brand.MakeDiscordLink(parent)
-    local btn = CreateFrame("Button", nil, parent)
-    btn:SetSize(130, 20)
+    local btn = Brand.MakeLinkButton(parent)
+    btn:SetSize(92, 20)
 
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    label:SetPoint("LEFT")
-    label:SetText("Join us on Discord")
-    label:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
-    btn.label = label
-    btn:SetWidth(label:GetStringWidth())
+    -- Icon sits left of the label - real aspect ratio (84x64 source)
+    -- preserved so the mark doesn't look squashed at this size.
+    local icon = btn:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(21, 16)
+    icon:SetPoint("LEFT", btn, "LEFT", 0, 0)
+    icon:SetTexture(Brand.DISCORD_ICON)
+    btn.icon = icon
 
-    btn:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1, 1) end)
-    btn:SetScript("OnLeave", function()
-        label:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
-    end)
+    btn.label:ClearAllPoints()
+    btn.label:SetPoint("LEFT", icon, "RIGHT", 5, 0)
+    btn:SetLabel("Discord", 0.45, 0.55, 0.95)
+
+    btn:HookScript("OnEnter", function() icon:SetVertexColor(1, 1, 1, 1) end)
+    btn:HookScript("OnLeave", function() icon:SetVertexColor(0.45, 0.55, 0.95, 1) end)
+    icon:SetVertexColor(0.45, 0.55, 0.95, 1)
+
     btn:SetScript("OnClick", function()
         Brand.ShowCopyBox("Join us on Discord", Brand.DISCORD_URL)
     end)
@@ -389,10 +438,12 @@ function Brand.MakeDiscordLink(parent)
 end
 
 -- ── MakeTextLink() / MakeCloseButton() ───────────────────────────
--- Text-link style controls (accent gold, brightening to white on hover)
--- rather than boxed buttons. Ported from Routes, where the boxed "X"/button
--- style was replaced for exactly this reason - confirmed preference
--- 2026-08-16: "it doesn't create such a visual blemish".
+-- Text-link style controls (brightening to white on hover) rather than
+-- boxed buttons. Ported from Routes, where the boxed "X"/button style was
+-- replaced for exactly this reason - confirmed preference 2026-08-16: "it
+-- doesn't create such a visual blemish". Default label color is
+-- Brand.HEADER_COLOR - the one accent color, no exceptions (confirmed
+-- 2026-09-25).
 --
 -- Neither sets its own anchor point; every call site anchors it itself, same
 -- convention as Brand.MakeButton.
@@ -403,13 +454,13 @@ function Brand.MakeTextLink(parent, text, onClick)
     local label = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("CENTER")
     label:SetText(text)
-    label:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
+    label:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
     btn.label = label
     btn:SetWidth(math.max(40, label:GetStringWidth() + 8))
 
     btn:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1, 1) end)
     btn:SetScript("OnLeave", function()
-        label:SetTextColor(Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3], 1)
+        label:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
     end)
     btn:SetScript("OnClick", onClick)
 
@@ -418,6 +469,123 @@ end
 
 function Brand.MakeCloseButton(parent, onClick)
     return Brand.MakeTextLink(parent, "Close", onClick or function() parent:Hide() end)
+end
+
+-- ── MakeEditBox()  ─ hand-drawn text input, same 4-texture border technique
+-- as MakeButton/MakeCheckbox - no Blizzard InputBoxTemplate art, whose
+-- endcap textures render wider than its SetSize (bled fields past a panel's
+-- safe margin on another addon). Exact, predictable width instead.
+function Brand.MakeEditBox(parent, w, h)
+    h = h or 22
+    local box = CreateFrame("EditBox", nil, parent)
+    PixelUtil.SetSize(box, w, h)
+
+    local bg = box:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.1, 0.1, 0.1, 0.6)
+
+    local thick = Brand.LINE_THICKNESS
+    local r, g, b = Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3]
+
+    local borderTop = box:CreateTexture(nil, "ARTWORK")
+    PixelUtil.SetPoint(borderTop, "TOPLEFT", box, "TOPLEFT", 0, 0)
+    PixelUtil.SetPoint(borderTop, "TOPRIGHT", box, "TOPRIGHT", 0, 0)
+    PixelUtil.SetHeight(borderTop, thick)
+    borderTop:SetColorTexture(r, g, b, 1)
+
+    local borderBottom = box:CreateTexture(nil, "ARTWORK")
+    PixelUtil.SetPoint(borderBottom, "BOTTOMLEFT", box, "BOTTOMLEFT", 0, 0)
+    PixelUtil.SetPoint(borderBottom, "BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, 0)
+    PixelUtil.SetHeight(borderBottom, thick)
+    borderBottom:SetColorTexture(r, g, b, 1)
+
+    local borderLeft = box:CreateTexture(nil, "ARTWORK")
+    PixelUtil.SetPoint(borderLeft, "TOPLEFT", box, "TOPLEFT", 0, 0)
+    PixelUtil.SetPoint(borderLeft, "BOTTOMLEFT", box, "BOTTOMLEFT", 0, 0)
+    PixelUtil.SetWidth(borderLeft, thick)
+    borderLeft:SetColorTexture(r, g, b, 1)
+
+    local borderRight = box:CreateTexture(nil, "ARTWORK")
+    PixelUtil.SetPoint(borderRight, "TOPRIGHT", box, "TOPRIGHT", 0, 0)
+    PixelUtil.SetPoint(borderRight, "BOTTOMRIGHT", box, "BOTTOMRIGHT", 0, 0)
+    PixelUtil.SetWidth(borderRight, thick)
+    borderRight:SetColorTexture(r, g, b, 1)
+
+    box:SetFont(Brand.BODY_FONT_PATH, 13, "")
+    box:SetTextColor(0.9, 0.9, 0.9, 1)
+    box:SetTextInsets(6, 6, 0, 0)
+    box:SetAutoFocus(false)
+
+    return box
+end
+
+-- ── ShowContextMenu()  ─ a right-click menu built entirely from brand
+-- widgets (bordered background, text-link entries) - NOT Blizzard's
+-- UIDropDownMenu/EasyMenu. Confirmed 2026-09-19: never default to
+-- Blizzard's own menu chrome for a context menu - build it ourselves like
+-- everything else in this brand.
+--
+-- options is an array of { label, r, g, b, onClick } - r/g/b optional
+-- (defaults to Brand.HEADER_COLOR). Not currently called anywhere in this
+-- addon - bundled for parity/future use, same as every other addon's
+-- BrandStyle.
+local contextMenu, clickCatcher
+
+function Brand.ShowContextMenu(options)
+    if not clickCatcher then
+        clickCatcher = CreateFrame("Button", nil, UIParent)
+        clickCatcher:SetAllPoints(UIParent)
+        clickCatcher:SetFrameStrata("FULLSCREEN")
+        clickCatcher:Hide()
+    end
+
+    if not contextMenu then
+        contextMenu = CreateFrame("Frame", nil, UIParent)
+        contextMenu:SetFrameStrata("FULLSCREEN_DIALOG")
+        Brand.ApplyBackground(contextMenu)
+        Brand.DrawBorder(contextMenu, 0)
+        contextMenu.buttons = {}
+        contextMenu:Hide()
+    end
+
+    local ROW_H, PAD = 22, 10
+    local width = 90
+    for i, opt in ipairs(options) do
+        local btn = contextMenu.buttons[i]
+        if not btn then
+            btn = Brand.MakeLinkButton(contextMenu)
+            btn:SetHeight(ROW_H)
+            contextMenu.buttons[i] = btn
+        end
+        btn:SetLabel(opt.label, opt.r or Brand.HEADER_COLOR[1], opt.g or Brand.HEADER_COLOR[2], opt.b or Brand.HEADER_COLOR[3])
+        btn:SetPoint("TOPLEFT", contextMenu, "TOPLEFT", PAD, -PAD - (i - 1) * ROW_H)
+        btn:SetScript("OnClick", function()
+            clickCatcher:Hide()
+            contextMenu:Hide()
+            if opt.onClick then opt.onClick() end
+        end)
+        btn:Show()
+        local w = btn.label:GetStringWidth() + 4
+        if w > width then width = w end
+    end
+    for i = #options + 1, #contextMenu.buttons do
+        contextMenu.buttons[i]:Hide()
+    end
+    for _, btn in ipairs(contextMenu.buttons) do btn:SetWidth(width) end
+
+    contextMenu:SetSize(width + PAD * 2, #options * ROW_H + PAD * 2)
+
+    local x, y = GetCursorPosition()
+    local scale = UIParent:GetEffectiveScale()
+    contextMenu:ClearAllPoints()
+    contextMenu:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+
+    clickCatcher:Show()
+    clickCatcher:SetScript("OnClick", function()
+        clickCatcher:Hide()
+        contextMenu:Hide()
+    end)
+    contextMenu:Show()
 end
 
 -- ── ShowCopyBox() ────────────────────────────────────────────────
@@ -444,18 +612,15 @@ function Brand.ShowCopyBox(caption, url)
         tinsert(UISpecialFrames, "XalsReinsCopyBox")
 
         Brand.ApplyBackground(f)
-        Brand.DrawBorder(f)
+        Brand.DrawBorder(f, 1)
 
         f.caption = Brand.FS(f, "", Brand.TITLE_FONT_PATH, 15, nil,
-            Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+            Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
         f.caption:SetPoint("TOP", f, "TOP", 0, -Brand.SAFE_MARGIN)
 
-        local box = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
-        box:SetHeight(22)
+        local box = Brand.MakeEditBox(f, 322, 22)
         box:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 10, -46)
-        box:SetPoint("TOPRIGHT", f, "TOPRIGHT", -Brand.SAFE_MARGIN, -46)
         box:SetAutoFocus(true)
-        box:SetFontObject("GameFontHighlightSmall")
         -- Reselect rather than allow edits: this is for copying, not typing.
         box:SetScript("OnTextChanged", function(self)
             if self.locked then return end
