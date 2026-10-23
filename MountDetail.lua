@@ -31,6 +31,103 @@ local function ShowCopyDialog(caption, url)
     Brand.ShowCopyBox(caption, url)
 end
 
+-- TomTom is preferred when it's installed (a real arrow, distance readout,
+-- the works) since it's almost always present; Blizzard's own native
+-- waypoint pin is the fallback otherwise, so this still works with nothing
+-- else installed. Verbatim from Xal's Armoire's own AppearanceDetail.lua.
+local function SetWaypoint(loc)
+    if not loc then return end
+    if TomTom and TomTom.AddMFWaypoint then
+        TomTom:AddMFWaypoint(loc.mapID, nil, loc.x, loc.y, { title = "Xal's Reins vendor" })
+        print("|cffb88c38Xal's Reins:|r waypoint set via TomTom.")
+    elseif C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
+        local point = UiMapPoint.CreateFromCoordinates(loc.mapID, loc.x, loc.y)
+        C_Map.SetUserWaypoint(point)
+        if C_SuperTrack then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        print("|cffb88c38Xal's Reins:|r waypoint set.")
+    end
+end
+
+-- Sizes the popup to where its content actually ends: the distance from the
+-- frame's top edge down to the close button's bottom edge is fixed by the
+-- real anchored layout (everything hangs off a chain rooted at TOPLEFT), so
+-- it's correct no matter how tall any card turned out to be. Safe to call
+-- repeatedly.
+local function ResizeToContent()
+    local f = frame
+    if not f or not f.closeButton then return end
+    local top, bottom = f:GetTop(), f.closeButton:GetBottom()
+    if top and bottom then
+        f:SetHeight((top - bottom) + Brand.SAFE_MARGIN)
+    end
+end
+
+-- Cards fit themselves to their text, continuously. A one-time measurement
+-- isn't reliable - GetStringHeight() reports the real wrapped height only
+-- once the text's width has actually resolved, which isn't guaranteed on
+-- the same frame the text is set (a two-line step measured as one and
+-- spilled over its own border). Re-checking every frame the card is on
+-- screen means it always lands on the true height within a frame, and
+-- tracks any later change (a font finishing loading, a link resolving).
+-- Anything anchored below a card follows it automatically; the popup
+-- resizes to match.
+local function FitCard(card)
+    local h = math.max(card.text:GetStringHeight() or 16, 16) + 16
+    if math.abs(h - (card:GetHeight() or 0)) > 0.5 then
+        card:SetHeight(h)
+        ResizeToContent()
+    end
+end
+
+-- Step links use a custom link type, so each card has to opt in and handle
+-- clicks itself. Lua can't open a browser, so a click hands over the
+-- Wowhead URL through the same copy box the mount links use.
+local function OnStepLink(_, link)
+    local kind, id = link:match("^xalsreins:(%a+):(%d+)$")
+    if not kind or not id then return end
+    local url = MountData:StepURL(kind, tonumber(id))
+    if url then
+        Brand.ShowCopyBox("Step link - copy this", url)
+    end
+end
+
+-- ── Step cards ───────────────────────────────────────────────────
+-- One bordered card per step in the prerequisite chain, same technique as
+-- Xal's Armoire's source cards (AppearanceDetail.lua's AcquireCard): a pool,
+-- not a fixed set, since step COUNT varies per mount - grown on demand,
+-- hidden when unused. Border only, no fill.
+local stepCardPool = {}
+
+local function AcquireStepCard(parent, index)
+    local card = stepCardPool[index]
+    if card then return card end
+
+    card = CreateFrame("Frame", nil, parent)
+    Brand.ApplyCardBackground(card)
+    Brand.DrawBorder(card, 0)
+
+    local marker = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
+    marker:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+    marker:SetWidth(12)
+    marker:SetJustifyH("LEFT")
+    card.marker = marker
+
+    local text = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
+    text:SetPoint("TOPLEFT", card, "TOPLEFT", 26, -8)
+    text:SetPoint("RIGHT", card, "RIGHT", -8, 0)
+    text:SetJustifyH("LEFT")
+    text:SetWordWrap(true)
+    text:SetSpacing(3)
+    card.text = text
+
+    card:SetHyperlinksEnabled(true)
+    card:SetScript("OnHyperlinkClick", OnStepLink)
+    card:SetScript("OnUpdate", FitCard)
+
+    stepCardPool[index] = card
+    return card
+end
+
 local function BuildFrame()
     if frame then return frame end
 
@@ -60,20 +157,7 @@ local function BuildFrame()
     end
 
     Brand.ApplyBackground(f)
-    Brand.DrawBorder(f)
-
-    -- Step links use a custom link type, so the frame has to opt in and handle
-    -- clicks itself. Lua can't open a browser, so a click hands over the
-    -- Wowhead URL through the same copy box the mount links use.
-    f:SetHyperlinksEnabled(true)
-    f:SetScript("OnHyperlinkClick", function(_, link)
-        local kind, id = link:match("^xalsreins:(%a+):(%d+)$")
-        if not kind or not id then return end
-        local url = MountData:StepURL(kind, tonumber(id))
-        if url then
-            Brand.ShowCopyBox("Step link - copy this", url)
-        end
-    end)
+    Brand.DrawBorder(f, 1)
 
     local icon = f:CreateTexture(nil, "ARTWORK")
     icon:SetSize(44, 44)
@@ -82,7 +166,7 @@ local function BuildFrame()
     f.icon = icon
 
     local title = Brand.FS(f, "", Brand.TITLE_FONT_PATH, 20, nil,
-        Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
     title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, -4)
     title:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
     title:SetJustifyH("LEFT")
@@ -95,22 +179,55 @@ local function BuildFrame()
     category:SetJustifyH("LEFT")
     f.categoryText = category
 
-    Brand.DrawDivider(f, Brand.SAFE_MARGIN, 72, WIN_W - (Brand.SAFE_MARGIN * 2))
+    -- Anchored to the category line instead of parked at a fixed y. A long
+    -- mount name wraps the title to two lines, which pushes the category
+    -- down - a fixed divider then cuts straight through it (confirmed via
+    -- screenshot, "Silvermoon's Arcane Defender"). Same fix Xal's Armoire's
+    -- own detail popup needed. Starts at the window's safe margin like
+    -- before, not at the category's own left edge: the category sits right
+    -- of the icon, so the x offset walks back across the icon (4 inset + 44
+    -- icon + 12 gap) to land on the margin; width stays fixed.
+    local divider = Brand.DrawHeaderDivider(f, Brand.SAFE_MARGIN, 72, WIN_W - (Brand.SAFE_MARGIN * 2))
+    divider:ClearAllPoints()
+    PixelUtil.SetPoint(divider, "TOPLEFT", category, "BOTTOMLEFT", -(4 + 44 + 12), -10)
 
     local heading = Brand.FS(f, "How to get it", Brand.TITLE_FONT_PATH, 15, nil,
-        Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
-    heading:SetPoint("TOPLEFT", f, "TOPLEFT", Brand.SAFE_MARGIN + 4, -84)
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
+    heading:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 4, -10)
     f.headingText = heading
 
-    local source = Brand.FS(f, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
-    source:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -6)
-    source:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
+    -- Bordered card around the sourcing text, same technique as Xal's
+    -- Armoire's own source cards - border only (Brand.DrawBorder(card, 0)),
+    -- no separate fill, matching Armoire's real implementation exactly
+    -- rather than the heavier filled-card look from the discussion mockup.
+    -- A "Set Waypoint" button shows in the corner when this mount's vendor
+    -- resolves to exactly one real spot in VendorLocations.lua (see
+    -- MountData:VendorLocationFor) - stays off for anything ambiguous or
+    -- unrecorded, never a guess.
+    local card = CreateFrame("Frame", nil, f)
+    card:SetPoint("TOPLEFT", heading, "BOTTOMLEFT", 0, -8)
+    card:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
+    Brand.ApplyCardBackground(card)
+    Brand.DrawBorder(card, 0)
+    f.sourceCard = card
+
+    local source = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    source:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
+    source:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     source:SetJustifyH("LEFT")
     source:SetWordWrap(true)
     f.sourceText = source
+    card.text = source
+    card:SetScript("OnUpdate", FitCard)
+
+    local waypointBtn = Brand.MakeTextLink(card, "Set Waypoint", function()
+        SetWaypoint(card.waypointLoc)
+    end)
+    waypointBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
+    f.waypointBtn = waypointBtn
 
     local blocked = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 0.87, 0.33, 0.33)
-    blocked:SetPoint("TOPLEFT", source, "BOTTOMLEFT", 0, -10)
+    blocked:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -10)
     blocked:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
     blocked:SetJustifyH("LEFT")
     blocked:SetWordWrap(true)
@@ -124,20 +241,15 @@ local function BuildFrame()
     f.availabilityText = availability
 
     local stepsHeading = Brand.FS(f, "", Brand.TITLE_FONT_PATH, 15, nil,
-        Brand.ACCENT[1], Brand.ACCENT[2], Brand.ACCENT[3])
+        Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
     stepsHeading:SetPoint("TOPLEFT", availability, "BOTTOMLEFT", 0, -12)
     f.stepsHeading = stepsHeading
 
-    local steps = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
-    steps:SetPoint("TOPLEFT", stepsHeading, "BOTTOMLEFT", 0, -6)
-    steps:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
-    steps:SetJustifyH("LEFT")
-    steps:SetWordWrap(true)
-    steps:SetSpacing(3)
-    f.stepsText = steps
-
+    -- Steps render as cards (see AcquireStepCard), built per mount in
+    -- Detail:Show - flavor text is re-anchored below whichever card ends up
+    -- last, so its starting anchor here is only a placeholder.
     local flavor = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 0.62, 0.62, 0.62)
-    flavor:SetPoint("TOPLEFT", steps, "BOTTOMLEFT", 0, -12)
+    flavor:SetPoint("TOPLEFT", stepsHeading, "BOTTOMLEFT", 0, -12)
     flavor:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
     flavor:SetJustifyH("LEFT")
     flavor:SetWordWrap(true)
@@ -195,6 +307,13 @@ function Detail:Show(entry)
     if entry.factionLabel then
         category = category .. "  |cff999999(" .. entry.factionLabel .. ")|r"
     end
+    -- How common the mount is among players, when the rarity data has a
+    -- figure for it - small values show as "<0.1%" rather than a bare 0.
+    local rarity = MountData:GetRarity(entry)
+    if rarity then
+        category = category .. "  |cff999999(owned by " ..
+            (rarity < 0.1 and "<0.1" or string.format("%.1f", rarity)) .. "% of players)|r"
+    end
     f.categoryText:SetText(category)
 
     local sourceLine = extra and extra.source
@@ -203,6 +322,28 @@ function Detail:Show(entry)
     else
         f.sourceText:SetText("The game doesn't provide sourcing text for this one.")
     end
+
+    -- Best-effort cross-reference against the shared vendor-location data -
+    -- a name VendorLocations.lua never recorded, or one that's genuinely
+    -- ambiguous (more than one real candidate NPC), just leaves the button
+    -- off rather than guessing. Reserve room on the right for the button
+    -- with a fixed inset (not computed from the button's own width) so the
+    -- source text can never run underneath it, regardless of how long
+    -- "Set Waypoint" ends up being.
+    local vendorName = MountData:GetSourceVendor(entry)
+    local locs = MountData:VendorLocationFor(vendorName, MountData:GetSourceZone(entry))
+    f.sourceCard.waypointLoc = (#locs == 1) and locs[1] or nil
+    if f.sourceCard.waypointLoc then
+        f.waypointBtn:Show()
+        f.sourceText:SetPoint("RIGHT", f.sourceCard, "RIGHT", -90, 0)
+    else
+        f.waypointBtn:Hide()
+        f.sourceText:SetPoint("RIGHT", f.sourceCard, "RIGHT", -8, 0)
+    end
+
+    -- Best-effort fit now; the card's own per-frame check (FitCard) settles
+    -- the true height as soon as the text's width has resolved.
+    FitCard(f.sourceCard)
 
     local why = MountData:WhyBlocked(entry.mountID)
     local missingProf = MountData:MissingProfession(entry)
@@ -238,8 +379,15 @@ function Detail:Show(entry)
 
     -- Prerequisite chain, if this mount has one written. Mounts without an
     -- entry show nothing at all rather than an empty heading.
-    local stepLines, doneCount, totalSteps, untracked = MountData:GetStepLines(entry)
-    if stepLines then
+    local stepCards, doneCount, totalSteps, untracked = MountData:GetStepCards(entry)
+
+    -- lastAnchor is whatever the true bottom edge of the steps section ends up
+    -- being this time - the last real card, or the heading itself when there
+    -- are no steps - so the flavor text (and everything chained below it)
+    -- always re-anchors to the right place regardless of how many cards there
+    -- were.
+    local lastAnchor = f.stepsHeading
+    if stepCards then
         local header = "Steps  |cff999999(" .. doneCount .. " of " .. totalSteps .. " done"
         -- Say plainly when some steps can't be verified, so an unticked step
         -- doesn't look like the addon getting it wrong.
@@ -248,11 +396,35 @@ function Detail:Show(entry)
         end
         header = header .. ")|r"
         f.stepsHeading:SetText(header)
-        f.stepsText:SetText(stepLines)
+
+        for i = 1, #stepCards do
+            local info = stepCards[i]
+            local card = AcquireStepCard(f, i)
+            card:ClearAllPoints()
+            card:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -8)
+            card:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
+
+            card.marker:SetText(MountData.StepMarker(info.status))
+            local body = info.text
+            if info.start then
+                body = body .. "\n|cff999999" .. info.start .. "|r"
+            end
+            card.text:SetText(body)
+
+            -- Best-effort fit now; FitCard (per-frame, see above) settles it.
+            FitCard(card)
+            card:Show()
+            lastAnchor = card
+        end
+        for i = #stepCards + 1, #stepCardPool do stepCardPool[i]:Hide() end
     else
         f.stepsHeading:SetText("")
-        f.stepsText:SetText("")
+        for i = 1, #stepCardPool do stepCardPool[i]:Hide() end
     end
+
+    f.flavorText:ClearAllPoints()
+    f.flavorText:SetPoint("TOPLEFT", lastAnchor, "BOTTOMLEFT", 0, -12)
+    f.flavorText:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
 
     if extra and extra.description and extra.description ~= "" then
         f.flavorText:SetText(extra.description)
@@ -294,26 +466,8 @@ function Detail:Show(entry)
     f.closeButton:ClearAllPoints()
     f.closeButton:SetPoint("TOP", lowestContent, "BOTTOM", 0, -Brand.SAFE_MARGIN)
 
-    -- Total height, added up directly from each piece's own real size - not
-    -- measured back off the frame after the fact. heading sits at a fixed
-    -- 84px from the top (clears the icon/title/category/divider region
-    -- above it); everything from there down is real content whose height
-    -- varies per mount, so it's summed from each element's own
-    -- GetStringHeight() (works immediately after SetText(), no need to
-    -- wait for the frame to be shown/laid out first). Link/close button
-    -- heights (20) are Brand.MakeTextLink's own fixed size, not guessed.
-    local hasLinks = f.wowheadButton:IsShown() or f.videoButton:IsShown()
-    local linkRowHeight = hasLinks and (20 + Brand.SAFE_MARGIN) or 0
-    f:SetHeight(84
-        + f.headingText:GetStringHeight() + 6
-        + f.sourceText:GetStringHeight() + 10
-        + f.blockedText:GetStringHeight() + 10
-        + f.availabilityText:GetStringHeight() + 12
-        + f.stepsHeading:GetStringHeight() + 6
-        + f.stepsText:GetStringHeight() + 12
-        + f.flavorText:GetStringHeight() + Brand.SAFE_MARGIN
-        + linkRowHeight
-        + 20 + Brand.SAFE_MARGIN)
+    -- Size the popup to where the content actually ends (see ResizeToContent).
+    ResizeToContent()
 
     f:Show()
 end
