@@ -45,16 +45,6 @@ by Xal's Armoire) rather than re-researched per addon.
 
 ---
 
-## 4. Bundled Mount Rarity Library
-
-`libs/MountsRarity` is MountsRarity by Sören Gade (sgade), licensed under the
-GNU General Public License v3 — see `libs/MountsRarity/LICENSE` for the full
-text. Its rarity data comes from Data for Azeroth. It's bundled as the author
-invites other addons to do, and stays under its own license, not the terms in
-section 1.
-
----
-
 ## Summary
 
 | Content | License | Can I fork/reuse it? |
@@ -66,4 +56,3 @@ section 1.
 | `Fonts/CustomFont.ttf` | SIL Open Font License | Yes — under the OFL's terms |
 | `Fonts/FiraSans-Medium.ttf` | SIL Open Font License | Yes — under the OFL's terms |
 | `VendorLocations.lua` | MIT License (VendorMap) | Yes — under the MIT terms |
-| `libs/MountsRarity` | GNU GPL v3 (MountsRarity) | Yes — under the GPL's terms |
