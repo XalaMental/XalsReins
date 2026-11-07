@@ -1,5 +1,32 @@
 # Xal's Reins - Changelog
 
+## 1.5.0 - November 6, 2026
+
+---
+
+Reins is on WoW Forever now, and it's the same download as Retail - it just picks the right data for whichever one you're playing. I didn't want it to be a bare list over there, so every mount with something standing in the way - a level, some gold, a reputation, a quest chain - shows exactly that, and each step ticks itself off against your character. I also decided it should only show mounts that are really in Forever. The game's journal lists a few placeholder entries that were never meant to be collected, and those stay out of your to-do list.
+
+While I was in there I cleaned up the zone icon. The old "last mount worked on" reminder is gone now that the WIP tab keeps everything you've started, so the icon only shows up when the zone you're in has a mount for you to go get - click it and you land on the Zone tab. I also fixed the What's New window, where the text could pile up on top of itself.
+
+Thanks for being part of the Xal family.
+
+### 🆕 New
+
+- **WoW Forever support** - the full mount list with how to get each one, including the Felsteed, Dreadsteed and Charger quest chains, the Black Qiraji Battle Tank, the Pack Kodo and the Galestriders.
+- **Steps that check themselves off on Forever** - your level, your gold, your reputation, your currency and your quest progress.
+- **Set Waypoint on Forever vendors**, plus working Raids and Dungeons tabs there.
+- **Forever-only mounts** - mounts that aren't really in Forever stay out of your to-do list, and mounts that can no longer be obtained are marked as such.
+
+### ⚙️ Changed
+
+- **The zone icon only appears when it matters** - it shows, glows and counts only while your zone has a mount you can get, and clicking it opens the Zone tab.
+- **The "show reminder for last mount worked on" setting is gone** - the WIP tab does that job now.
+
+### 🔧 Fixed
+
+- The What's New window no longer piles its lines on top of each other.
+- The settings window is no longer cut short when its text wraps.
+
 ## 1.4.0 - October 23, 2026
 
 ---
