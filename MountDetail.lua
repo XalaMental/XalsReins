@@ -14,9 +14,8 @@ local Brand     = addonTable.BrandStyle
 local MountData = addonTable.MountData
 
 -- No fixed height - the description/steps text varies a lot per mount, and
--- a hardcoded 470 risked the exact same overlap StepReminder.lua had (link
--- buttons anchored to a fixed frame-bottom position instead of the actual
--- content). The real height is added up directly from each element's own
+-- a hardcoded 470 risked overlap (link buttons anchored to a fixed
+-- frame-bottom position instead of the actual content). The real height is added up directly from each element's own
 -- size every time a mount is shown (see Detail:Show below) - this initial
 -- size is just a throwaway starting value, always overwritten before the
 -- frame is ever actually shown.
@@ -439,8 +438,7 @@ function Detail:Show(entry)
 
     -- Anchored off flavor (the actual last content element) instead of a
     -- fixed frame-bottom position - flavor's length varies a lot per mount,
-    -- so a fixed offset here risked the exact same overlap StepReminder.lua
-    -- had.
+    -- so a fixed offset here risked overlap.
     local anchor = nil
     for _, pair in ipairs({ { f.wowheadURL, f.wowheadButton }, { f.videoURL, f.videoButton } }) do
         local url, button = pair[1], pair[2]
