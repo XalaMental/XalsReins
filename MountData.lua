@@ -14,6 +14,14 @@
 local addonName, addonTable = ...
 local MountData = addonTable.MountData
 
+-- WoW Forever (the Classic-era client, project "Camelot") is the same addon
+-- with different data files - see XalsReins_Camelot.toc. Wowhead keeps that
+-- game's pages under /forever/ (the /classic/ section is Classic Era and has
+-- no page for Forever-only spells), so links need the prefix there.
+local FOREVER = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
+MountData.FOREVER = FOREVER
+local WOWHEAD = "https://www.wowhead.com/" .. (FOREVER and "forever/" or "")
+
 MountData.roster = nil   -- array of entries, sorted by name
 MountData.byID   = nil   -- mountID -> entry
 MountData.extra  = {}    -- mountID -> lazily fetched description/source
@@ -363,7 +371,7 @@ end
 -- Deathcharger), so every mount gets a real link with nothing to maintain.
 function MountData:GetWowheadURL(entry)
     if not entry or not entry.spellID then return nil end
-    return "https://www.wowhead.com/spell=" .. entry.spellID
+    return WOWHEAD .. "spell=" .. entry.spellID
 end
 
 -- Video guides are NOT derivable - there is no per-mount video ID anywhere in
@@ -586,11 +594,22 @@ MountData.instanceKinds = nil   -- lowercased instance name -> "raid" | "dungeon
 
 function MountData:BuildInstanceIndex()
     if self.instanceKinds then return self.instanceKinds end
+
+    -- WoW Forever has no Encounter Journal to enumerate, so that build ships
+    -- its own name -> kind list (ForeverInstances.lua) instead.
+    local kinds = {}
+    for name, kind in pairs(addonTable.ForeverInstances or {}) do
+        kinds[name] = kind
+    end
+
     if not EJ_GetNumTiers or not EJ_SelectTier or not EJ_GetInstanceByIndex then
+        if next(kinds) then
+            self.instanceKinds = kinds
+            return kinds
+        end
         return nil
     end
 
-    local kinds = {}
     local restoreTier = EJ_GetCurrentTier and EJ_GetCurrentTier() or nil
 
     for tier = 1, (EJ_GetNumTiers() or 0) do
@@ -953,6 +972,22 @@ function MountData:GetSteps(entry)
     return steps
 end
 
+-- The player's standing with a faction on the 1-8 scale (0 when unknown to
+-- them), or nil when the client offers no reputation call at all. Retail has
+-- C_Reputation; WoW Forever (Classic-era client) only has the older call, whose
+-- third return is the standing on the same scale.
+local function FactionReaction(factionID)
+    if C_Reputation and C_Reputation.GetFactionDataByID then
+        local data = C_Reputation.GetFactionDataByID(factionID)
+        return data and data.reaction or 0
+    end
+    if GetFactionInfoByID then
+        local _, _, standing = GetFactionInfoByID(factionID)
+        return standing or 0
+    end
+    return nil
+end
+
 -- true = done, false = not done, nil = nothing to check against.
 --
 -- Not every prerequisite is a quest. Achievements, holding a specific item,
@@ -993,13 +1028,25 @@ function MountData:StepStatus(step)
         return nil
     end
 
-    if step.factionID and step.reaction and C_Reputation
-        and C_Reputation.GetFactionDataByID then
-        local data = C_Reputation.GetFactionDataByID(step.factionID)
-        if data and data.reaction then
-            return data.reaction >= step.reaction
+    if step.factionID and step.reaction then
+        local have = FactionReaction(step.factionID)
+        -- altFactionID: the other side's version of the same faction
+        -- (Alliance and Horde each have their own on Forever's supply camps).
+        if step.altFactionID then
+            local alt = FactionReaction(step.altFactionID)
+            if alt and (not have or alt > have) then have = alt end
         end
-        return false
+        if have then return have >= step.reaction end
+    end
+
+    -- Level and gold gates - the real hurdles on the Forever build, where a
+    -- mount is mostly "reach level 40, hold 20 gold, be Exalted".
+    if step.level and UnitLevel then
+        return UnitLevel("player") >= step.level
+    end
+
+    if step.money and GetMoney then
+        return GetMoney() >= step.money
     end
 
     return nil
@@ -1101,11 +1148,10 @@ function MountData:GetStepLines(entry)
     return table.concat(lines, "\n"), done, total, untracked
 end
 
--- What share of players own this mount, 0-100, from the bundled MountsRarity
--- library (libs/MountsRarity - GPLv3, data from Data for Azeroth; see
--- LICENSE.md). If a newer copy of that library is installed by another addon
--- or by itself, LibStub hands back the newest one, so this is never older
--- than what we ship. nil when there's no figure for the mount.
+-- What share of players own this mount, 0-100, from the rarity library in
+-- libs. If a newer copy of that library is installed by another addon or by
+-- itself, LibStub hands back the newest one, so this is never older than what
+-- we ship. nil when there's no figure for the mount.
 function MountData:GetRarity(entry)
     if not entry or not entry.mountID then return nil end
     local lib = LibStub and LibStub("MountsRarity-2.0", true)
@@ -1150,7 +1196,7 @@ end
 -- links: the URL scheme carries the ID directly, so nothing is maintained.
 function MountData:StepURL(kind, id)
     if not kind or not id then return nil end
-    return "https://www.wowhead.com/" .. kind .. "=" .. id
+    return WOWHEAD .. kind .. "=" .. id
 end
 
 -- ── Unobtainable / placeholder filtering ─────────────────────────
@@ -1168,6 +1214,22 @@ end
 
 function MountData:IsUnobtainable(entry)
     if self:IsPlaceholder(entry) then return true end
+
+    -- WoW Forever data: mounts whose every item is retired in that client.
+    local retired = addonTable.UnobtainableMounts
+    if retired and entry.name and retired[entry.name] then return true end
+
+    -- On Forever only what is really in Forever should show. The client's
+    -- journal also lists entries that aren't part of the game (placeholder
+    -- spells with no item and no source). A mount counts as real when the
+    -- Forever data knows a way to get it, or the game's own journal gives a
+    -- source for it (new mounts the data hasn't caught up with yet).
+    local real = addonTable.ForeverObtainable
+    if FOREVER and real and entry.name and not real[entry.name] then
+        local info = self:GetExtra(entry.mountID)
+        local text = info and info.source
+        if not text or text == "" then return true end
+    end
 
     local fragments = addonTable.UnobtainableSources
     if not fragments then return false end
