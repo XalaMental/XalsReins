@@ -14,9 +14,10 @@ local Brand         = addonTable.BrandStyle
 
 local PANEL_NAME = "Xal's Reins"
 -- No fixed height - every element below is chained TOP-to-previous-BOTTOM
--- (a real relative stack), then the total height is added up directly from
--- each piece's own real size (GetStringHeight() works immediately after
--- SetText(), no need to wait for the frame to be shown/laid out first).
+-- (a real relative stack), and the window height is fitted from where the
+-- last element really ends once the text has laid out (a wrapped line's
+-- height isn't known until its width resolves, so it is never summed up
+-- front from GetStringHeight()).
 local WIN_W = 420
 local INITIAL_H = 500
 
@@ -71,9 +72,11 @@ local function BuildWindow()
     note:SetJustifyH("LEFT")
     note:SetWordWrap(true)
 
+    local closeBtn -- the bottom-most element; the window height is fitted to it below
+
     -- With Xal's Keep installed, the rook is the one minimap button and the
-    -- one zone alert for the whole collection suite (and it has no
-    -- last-mount reminder), so this addon's own two toggles would do nothing.
+    -- one zone alert for the whole collection suite, so this addon's own
+    -- minimap toggle would do nothing.
     -- Point at where those settings live instead of showing dead controls.
     if XalsKeep then
         local keepNote = Brand.FS(f, "Xal's Keep is installed, so the minimap button "
@@ -84,15 +87,8 @@ local function BuildWindow()
         keepNote:SetJustifyH("LEFT")
         keepNote:SetWordWrap(true)
 
-        local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-        close:SetPoint("TOP", keepNote, "BOTTOM", 0, -Brand.SAFE_MARGIN)
-
-        -- Height from where the content actually ends, not summed string
-        -- heights (see MountDetail.lua for why).
-        local top, bottom = f:GetTop(), close:GetBottom()
-        if top and bottom then
-            f:SetHeight((top - bottom) + Brand.SAFE_MARGIN)
-        end
+        closeBtn = Brand.MakeCloseButton(f, function() f:Hide() end)
+        closeBtn:SetPoint("TOP", keepNote, "BOTTOM", 0, -Brand.SAFE_MARGIN)
     else
         -- Minimap button toggle. Brand checkbox, not UICheckButtonTemplate,
         -- and driven by cb.OnToggle rather than an OnClick script - the
@@ -116,38 +112,19 @@ local function BuildWindow()
             addonTable.MinimapButton:SetShown(self:GetChecked() and true or false)
         end
 
-        -- Zone-alert icon toggle. When off, the floating saddle icon only
-        -- shows up while the current zone has something acquirable, instead
-        -- of staying up all the time to keep left-click's "last mount worked
-        -- on" reachable.
-        local zoneCheck = Brand.MakeCheckbox(f, CHECK_SIZE)
-        zoneCheck:SetPoint("TOPLEFT", mmCheck, "BOTTOMLEFT", 0, -16)
-
-        local zoneLabel = Brand.FS(f, "Show reminder for last mount worked on", Brand.BODY_FONT_PATH, 14, nil,
-            Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-        zoneLabel:SetPoint("LEFT", zoneCheck, "RIGHT", 8, 0)
-        zoneLabel:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN, 0)
-        zoneLabel:SetJustifyH("LEFT")
-        zoneLabel:SetWordWrap(true)
-
-        zoneCheck:SetChecked(type(XalsReinsDB) == "table" and XalsReinsDB.showLastMountReminder ~= false)
-        zoneCheck.OnToggle = function(self)
-            if type(XalsReinsDB) == "table" then
-                XalsReinsDB.showLastMountReminder = self:GetChecked() and true or false
-            end
-            if addonTable.ZoneAlertIcon then addonTable.ZoneAlertIcon:UpdateVisibility() end
-        end
-
-        local close = Brand.MakeCloseButton(f, function() f:Hide() end)
-        close:SetPoint("TOP", zoneCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
-
-        -- Total height, added up directly from each piece's own real size -
-        -- not measured back off the frame after the fact. This panel's text
-        -- is all static (never varies at runtime), so this only ever needs
-        -- computing once at build time.
-        f:SetHeight(NOTE_TOP + note:GetStringHeight() + 20 + CHECK_SIZE + 16 + CHECK_SIZE
-            + Brand.SAFE_MARGIN + 20 + Brand.SAFE_MARGIN)
+        closeBtn = Brand.MakeCloseButton(f, function() f:Hide() end)
+        closeBtn:SetPoint("TOP", mmCheck, "BOTTOM", 0, -Brand.SAFE_MARGIN)
     end
+
+    -- Fit the window to its content: from the frame's top down to the close
+    -- button's real bottom. Runs each frame while shown (only writes on a
+    -- change), so it settles as soon as the wrapped text has laid out.
+    f:SetScript("OnUpdate", function(self)
+        local top, bottom = self:GetTop(), closeBtn:GetBottom()
+        if not (top and bottom) then return end
+        local h = (top - bottom) + Brand.SAFE_MARGIN
+        if math.abs(self:GetHeight() - h) > 0.5 then self:SetHeight(h) end
+    end)
 
     f:Hide()
     window = f
