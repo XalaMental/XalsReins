@@ -27,22 +27,42 @@ local Brand = addonTable.BrandStyle
 -- ── Update this block every release to match CHANGELOG.md ──────
 -- (no "version" field here on purpose - see note above)
 W.WHATS_NEW = {
-    date = "October 23, 2026",
+    date = "November 6, 2026",
     intro = "A mount tracker that shows what you can actually go and get, and how to get it.",
     sections = {
         { heading = "New", items = {
-            "A Zone tab replaces the old zone checkbox, and a WIP tab keeps every mount you've started in one place.",
-            "Mount details are laid out as cards - one for how to get it and one for each step.",
-            "Set Waypoint on vendor mounts, and the percent of players who own each mount.",
-            "A count on the zone icon showing how many mounts you can still get in this zone.",
-            "Works with Xal's Keep - it takes over the minimap button and zone alert.",
+            "Reins now also works on WoW Forever, from the same download.",
         } },
-        { heading = "Good to know", items = {
-            "Everything has a fresh look - new colors, new fonts, text-style buttons.",
-            "Step-by-step chains now cover every expansion.",
+        { heading = "Changed", items = {
+            "The zone icon only shows up when your zone has a mount you can get, and clicking it opens the Zone tab.",
+            "The \"last mount worked on\" setting is gone - the WIP tab keeps every mount you've started.",
+        } },
+        { heading = "Fixed", items = {
+            "This window and the settings window no longer pile their text on top of each other.",
         } },
     },
 }
+
+-- WoW Forever has its own release notes - the Retail ones above talk about
+-- expansions and features that don't exist there.
+W.WHATS_NEW_FOREVER = {
+    date = "November 6, 2026",
+    intro = "Reins is now on WoW Forever: every mount, and exactly what stands between you and it.",
+    sections = {
+        { heading = "New", items = {
+            "The full mount list with how to get each one, including quest chains for the Felsteed, Dreadsteed, Charger and the Black Qiraji Battle Tank.",
+            "Steps that check themselves off: your level, your gold, your reputation and your quest progress.",
+            "Set Waypoint on mount vendors, plus Zone, All, Raids and Dungeons tabs and a count on the zone icon.",
+            "Mounts that can no longer be obtained are marked as such.",
+        } },
+        { heading = "Good to know", items = {
+            "Nothing changes in how Reins works on Retail.",
+            "Percent-of-players ownership isn't shown on Forever.",
+        } },
+    },
+}
+
+local FOREVER = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 -- ── Version check ────────────────────────────────────────────
 -- C_AddOns.GetAddOnMetadata is the current namespaced API (available on
@@ -101,7 +121,7 @@ local function BuildFrame(installedVersion)
     Brand.ApplyBackground(f)
     Brand.DrawBorder(f, 1)
 
-    local data = W.WHATS_NEW
+    local data = FOREVER and W.WHATS_NEW_FOREVER or W.WHATS_NEW
     Brand.Title(f, "What's New", 26, "TOP", f, "TOP", 0, -24)
 
     -- "installedVersion" is the REAL live version (from CheckAndShow), not a
@@ -113,32 +133,46 @@ local function BuildFrame(installedVersion)
 
     Brand.DrawHeaderDivider(f, 30, 78, FW - 60)
 
-    local y = 92
+    -- Every line hangs off the one above it (BOTTOMLEFT anchor) instead of a
+    -- height measured up front: a wrapped line's real height isn't known
+    -- until its width has resolved, so measuring it here read one line and
+    -- stacked everything on top of everything else. With chained anchors the
+    -- layout is always right, and the frame height is fitted from the last
+    -- line's real bottom (below).
+    local last, lastX
+    local function Place(obj, x, gap)
+        if last then
+            obj:SetPoint("TOPLEFT", last, "BOTTOMLEFT", x - lastX, -gap)
+        else
+            obj:SetPoint("TOPLEFT", f, "TOPLEFT", x, -92)
+        end
+        last, lastX = obj, x
+    end
+
     if data.intro and data.intro ~= "" then
         local intro = Brand.FS(f, data.intro, Brand.BODY_FONT_PATH, 12, "", 0.85, 0.85, 0.85)
-        intro:SetPoint("TOPLEFT", f, "TOPLEFT", 30, -y)
         intro:SetWidth(FW - 60)
         intro:SetJustifyH("LEFT")
         intro:SetWordWrap(true)
-        y = y + (intro:GetStringHeight() or 14) + 14
+        Place(intro, 30, 0)
     end
 
+    local afterBullet = false
     for _, section in ipairs(data.sections or {}) do
         local head = Brand.FS(f, section.heading, Brand.BODY_FONT_PATH, 13, "OUTLINE",
             Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
-        head:SetPoint("TOPLEFT", f, "TOPLEFT", 30, -y)
-        y = y + 20
+        Place(head, 30, afterBullet and 16 or 14)
+        afterBullet = false
 
         for _, item in ipairs(section.items or {}) do
             local bullet = Brand.FS(f, "-  " .. item, Brand.BODY_FONT_PATH, 12, "",
                 Brand.GOLD[1], Brand.GOLD[2], Brand.GOLD[3])
-            bullet:SetPoint("TOPLEFT", f, "TOPLEFT", 36, -y)
             bullet:SetWidth(FW - 76)
             bullet:SetJustifyH("LEFT")
             bullet:SetWordWrap(true)
-            y = y + (bullet:GetStringHeight() or 14) + 6
+            Place(bullet, 36, 6)
+            afterBullet = true
         end
-        y = y + 10
     end
 
     local closeBtn = Brand.MakeButton(f, "Got it", 110, 28, function()
@@ -146,13 +180,16 @@ local function BuildFrame(installedVersion)
     end)
     closeBtn:SetPoint("BOTTOM", f, "BOTTOM", 0, 18)
 
-    -- Size the frame to its ACTUAL content (y = how far the layout got, plus
-    -- room for the close button + bottom padding) instead of a guessed fixed
-    -- height - a longer release's content would otherwise clip or overlap
-    -- the button. BOTTOM-anchored elements (the button, the border/background,
-    -- both resize-safe) re-settle automatically once the frame's real size
-    -- is set.
-    f:SetHeight(math.min(y + 56, MAX_FH))
+    -- Size the frame to its ACTUAL content: from the frame's top down to the
+    -- last line's real bottom, plus room for the close button and padding.
+    -- Re-checked every frame while shown (cheap, and only writes on a change)
+    -- so it settles as soon as the text widths resolve.
+    f:SetScript("OnUpdate", function(self)
+        local top, bottom = self:GetTop(), last and last:GetBottom()
+        if not (top and bottom) then return end
+        local h = math.min((top - bottom) + 56, MAX_FH)
+        if math.abs(self:GetHeight() - h) > 0.5 then self:SetHeight(h) end
+    end)
 
     return f
 end
