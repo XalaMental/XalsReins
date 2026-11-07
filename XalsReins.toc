@@ -6,7 +6,6 @@
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1657725
 ## SavedVariables: XalsReinsDB
-## SavedVariablesPerCharacter: XalsReinsCharDB
 ## IconTexture: Interface\AddOns\XalsReins\Icon.png
 ## OptionalDeps: XalsKeep
 
@@ -24,7 +23,6 @@ Unobtainable.lua
 MountSteps.lua
 MountData.lua
 WhatsNew.lua
-StepReminder.lua
 Engine.lua
 MainTracker.lua
 MountDetail.lua
