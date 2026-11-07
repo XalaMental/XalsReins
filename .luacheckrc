@@ -10,8 +10,7 @@ std = "lua51"
 -- entries, all of which are genuinely written to.
 globals = {
     "XalsReinsDB",
-    "XalsReinsCharDB",
-    "XalsVendorLocations", -- set by VendorLocations.lua, read by MountData.lua
+    "XalsVendorLocations", -- set by VendorLocations.lua / ForeverVendorLocations.lua, read by MountData.lua
     "StaticPopupDialogs", -- a real mutable table addons add popup entries to
     "SLASH_XALSREINS1",
     "SlashCmdList",
@@ -75,6 +74,11 @@ read_globals = {
     "C_Map",
     "C_SuperTrack",
     "UiMapPoint",
+    "UnitLevel", -- Forever level steps
+    "GetMoney", -- Forever gold steps
+    "GetFactionInfoByID", -- Forever reputation fallback
+    "WOW_PROJECT_CAMELOT",
+    "WOW_PROJECT_ID",
 }
 
 -- Textures/backdrop tables and long chained SetPoint calls read as "unused
