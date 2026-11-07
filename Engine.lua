@@ -14,7 +14,6 @@ local frame = CreateFrame("Frame")
 
 local function EnsureDB()
     if type(XalsReinsDB) ~= "table" then XalsReinsDB = {} end
-    if type(XalsReinsCharDB) ~= "table" then XalsReinsCharDB = {} end
 end
 
 function Engine:Init()
@@ -30,14 +29,9 @@ function Engine:Init()
     -- rather than something to error on.
     MountData:Build()
 
-    -- Starts this session's own live tracking of which mount's step chain
-    -- was most recently touched, so the zone-alert icon's left-click always
-    -- has somewhere fresh to point.
-    addonTable.StepReminder:Start()
-
-    -- The floating zone-alert icon - flashes when this zone has an
-    -- acquirable mount, always visible otherwise unless that's turned off
-    -- in settings. Needs the roster built first, same as the tracker itself.
+    -- The floating zone-alert icon - only shown, and flashing, while this
+    -- zone has an acquirable mount. Needs the roster built first, same as the
+    -- tracker itself.
     addonTable.ZoneAlertIcon:Init()
 
     -- Trading Post offerings often aren't loaded at PLAYER_LOGIN; retry a few
