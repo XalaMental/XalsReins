@@ -3,18 +3,14 @@
 -- button, that flashes when the zone you're standing in has a mount you can
 -- actually go and get right now. A small badge shows how many.
 --
--- Deliberately NOT hidden by default: left-click always jumps to whichever
--- mount you most recently made progress on (StepReminder.lua), regardless of
--- what's in your current zone, so the icon needs to be there to click even
--- when this zone has nothing. The "Show reminder for last mount worked on"
--- setting controls that - turn it off and the icon only appears when this
--- zone genuinely has something, since there's no other reason to keep it on
--- screen.
+-- The icon only exists while this zone genuinely has something to get - it
+-- is hidden the rest of the time. (The old always-on "last mount worked on"
+-- reminder is gone: the tracker's WIP tab keeps every mount you've started.)
 --
--- Right-click opens the tracker on its Zone tab (2026-09-29 - was a "this
--- zone only" checkbox layered onto the other tabs; now Zone is a real 4th
--- tab of its own, same pattern as Xal's Compendium's Zone/Daily/Weekly/
--- Legacy tabs).
+-- Clicking it opens the tracker on its Zone tab (2026-09-29 - was a "this
+-- zone only" checkbox layered onto the other tabs; now Zone is a real tab
+-- of its own, same pattern as Xal's Compendium's Zone/Daily/Weekly/Legacy
+-- tabs).
 --
 -- The glow technique is copied exactly from Quest Compass's own floating
 -- alert icon (same file, its "CreateCompactIcon" - Interface\Cooldown\star4,
@@ -37,10 +33,6 @@ local ICON_PATH = "Interface\\AddOns\\XalsReins\\Textures\\MinimapIcon_v1.png"
 local BADGE_RATIO = 22 / 64
 
 local icon
-
-local function ShowReminderEnabled()
-    return type(XalsReinsDB) == "table" and XalsReinsDB.showLastMountReminder ~= false
-end
 
 -- Every mount in the to-do list that matches the zone you're standing in
 -- right now - not just the first one. Reuses the exact same to-do/zone-
@@ -147,33 +139,16 @@ local function BuildIcon()
         end
     end)
 
-    f:SetScript("OnClick", function(self, button)
-        if button == "RightButton" then
-            addonTable.MainTracker:ShowZoneOnly()
-        else
-            local entry = addonTable.StepReminder:GetLastMountEntry()
-            if entry then addonTable.MountDetail:Show(entry) end
-        end
+    f:SetScript("OnClick", function()
+        addonTable.MainTracker:ShowZoneOnly()
     end)
 
     f:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText("Xal's Reins", Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
-
-        local lastEntry, remaining = addonTable.StepReminder:GetLastMountEntry()
-        if lastEntry then
-            GameTooltip:AddLine("|cff999999Left-click:|r " .. lastEntry.name ..
-                " - " .. remaining .. " step" .. (remaining == 1 and "" or "s") .. " left")
-        else
-            GameTooltip:AddLine("|cff999999Left-click:|r nothing tracked yet")
-        end
-
-        if #ZoneMounts() > 0 then
-            GameTooltip:AddLine("|cff999999Right-click:|r mounts you can get in this zone")
-        else
-            GameTooltip:AddLine("|cff999999Right-click:|r nothing to get in this zone")
-        end
-
+        local count = #ZoneMounts()
+        GameTooltip:AddLine("|cff999999Click:|r " .. count .. " mount" .. (count == 1 and "" or "s")
+            .. " you can get in this zone")
         GameTooltip:Show()
     end)
     f:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -182,13 +157,10 @@ local function BuildIcon()
     return f
 end
 
--- Decides whether the icon itself shows, whether the glow plays, and what
--- the badge reads - three separate questions, all driven off one shared
--- ZoneMounts() list so they can't disagree with each other. The icon shows
--- either because the setting keeps it up always, or because this zone
--- genuinely has something; the glow and the badge number ONLY ever reflect
--- the second reason - the badge stays hidden at 0 rather than showing a
--- bare "0" when the icon's only up for the last-mount-reminder setting.
+-- Decides whether the icon shows, whether the glow plays, and what the badge
+-- reads, all driven off one shared ZoneMounts() list so they can't disagree
+-- with each other: the icon, glow and count only exist while this zone has
+-- something to get.
 function Alert:UpdateVisibility()
     if XalsKeep then
         if icon then icon:Hide() end
@@ -200,7 +172,7 @@ function Alert:UpdateVisibility()
     local zoneMounts = ZoneMounts()
     local hasZoneMount = #zoneMounts > 0
 
-    if hasZoneMount or ShowReminderEnabled() then
+    if hasZoneMount then
         f:Show()
     else
         f:Hide()
