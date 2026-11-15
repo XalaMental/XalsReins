@@ -27,18 +27,17 @@ local Brand = addonTable.BrandStyle
 -- ── Update this block every release to match CHANGELOG.md ──────
 -- (no "version" field here on purpose - see note above)
 W.WHATS_NEW = {
-    date = "November 6, 2026",
+    date = "November 15, 2026",
     intro = "A mount tracker that shows what you can actually go and get, and how to get it.",
     sections = {
         { heading = "New", items = {
-            "Reins now also works on WoW Forever, from the same download.",
+            "Six color skins - pick one in settings and every window changes right away.",
+            "A real settings window, with options for the zone alert icon: show or hide it, make it bigger or smaller, and put it back where it started.",
+            "A new icon to match the rest of the Xal's addons.",
         } },
         { heading = "Changed", items = {
-            "The zone icon only shows up when your zone has a mount you can get, and clicking it opens the Zone tab.",
-            "The \"last mount worked on\" setting is gone - the WIP tab keeps every mount you've started.",
-        } },
-        { heading = "Fixed", items = {
-            "This window and the settings window no longer pile their text on top of each other.",
+            "Indigo slate is the new default look. Crimson is still there as a choice.",
+            "The selected tab is a brighter color.",
         } },
     },
 }
@@ -46,22 +45,20 @@ W.WHATS_NEW = {
 -- WoW Forever has its own release notes - the Retail ones above talk about
 -- expansions and features that don't exist there.
 W.WHATS_NEW_FOREVER = {
-    date = "November 6, 2026",
-    intro = "Reins is now on WoW Forever: every mount, and exactly what stands between you and it.",
+    date = "November 15, 2026",
+    intro = "Reins on WoW Forever now knows where every mount comes from.",
     sections = {
         { heading = "New", items = {
-            "The full mount list with how to get each one, including quest chains for the Felsteed, Dreadsteed, Charger and the Black Qiraji Battle Tank.",
-            "Steps that check themselves off: your level, your gold, your reputation and your quest progress.",
-            "Set Waypoint on mount vendors, plus Zone, All, Raids and Dungeons tabs and a count on the zone icon.",
-            "Mounts that can no longer be obtained are marked as such.",
+            "Each mount says how you get it: Vendor, Drop, Quest, Reputation, Profession or PvP, and PvP mounts have their own section.",
+            "Six color skins and a real settings window, with options for the zone alert icon.",
+            "A new icon to match the rest of the Xal's addons.",
         } },
-        { heading = "Good to know", items = {
-            "Nothing changes in how Reins works on Retail.",
-            "Percent-of-players ownership isn't shown on Forever.",
+        { heading = "Fixed", items = {
+            "The zone alert, the Zone tab and the Raids and Dungeons tabs were empty on Forever. They now work.",
+            "Racial mounts no longer ask for Exalted reputation they don't need.",
         } },
     },
 }
-
 local FOREVER = WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT
 
 -- ── Version check ────────────────────────────────────────────
@@ -150,7 +147,7 @@ local function BuildFrame(installedVersion)
     end
 
     if data.intro and data.intro ~= "" then
-        local intro = Brand.FS(f, data.intro, Brand.BODY_FONT_PATH, 12, "", 0.85, 0.85, 0.85)
+        local intro = Brand.FS(f, data.intro, Brand.BODY_FONT_PATH, 12, "", Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
         intro:SetWidth(FW - 60)
         intro:SetJustifyH("LEFT")
         intro:SetWordWrap(true)
