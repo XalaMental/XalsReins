@@ -12,8 +12,14 @@ local RESET  = "|r"
 
 local frame = CreateFrame("Frame")
 
+local DEFAULT_SKIN = "indigo"
+
 local function EnsureDB()
     if type(XalsReinsDB) ~= "table" then XalsReinsDB = {} end
+    -- Skin (colors for every window; see XalsSkins.lua). Applied here, before
+    -- any window is built, so everything picks it up.
+    if XalsReinsDB.skin == nil then XalsReinsDB.skin = DEFAULT_SKIN end
+    XalsReinsDB.skin = addonTable.BrandStyle.ApplySkin(XalsReinsDB.skin)
 end
 
 function Engine:Init()
