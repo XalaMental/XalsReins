@@ -105,13 +105,13 @@ local function AcquireStepCard(parent, index)
     Brand.ApplyCardBackground(card)
     Brand.DrawBorder(card, 0)
 
-    local marker = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
+    local marker = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
     marker:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
     marker:SetWidth(12)
     marker:SetJustifyH("LEFT")
     card.marker = marker
 
-    local text = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
+    local text = Brand.FS(card, "", Brand.BODY_FONT_PATH, 12, nil, Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
     text:SetPoint("TOPLEFT", card, "TOPLEFT", 26, -8)
     text:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     text:SetJustifyH("LEFT")
@@ -210,7 +210,7 @@ local function BuildFrame()
     Brand.DrawBorder(card, 0)
     f.sourceCard = card
 
-    local source = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    local source = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
     source:SetPoint("TOPLEFT", card, "TOPLEFT", 8, -8)
     source:SetPoint("RIGHT", card, "RIGHT", -8, 0)
     source:SetJustifyH("LEFT")
@@ -225,14 +225,14 @@ local function BuildFrame()
     waypointBtn:SetPoint("TOPRIGHT", card, "TOPRIGHT", -8, -8)
     f.waypointBtn = waypointBtn
 
-    local blocked = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 0.87, 0.33, 0.33)
+    local blocked = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, Brand.BAD_COLOR[1], Brand.BAD_COLOR[2], Brand.BAD_COLOR[3])
     blocked:SetPoint("TOPLEFT", card, "BOTTOMLEFT", 0, -10)
     blocked:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
     blocked:SetJustifyH("LEFT")
     blocked:SetWordWrap(true)
     f.blockedText = blocked
 
-    local availability = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 1, 1, 1)
+    local availability = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
     availability:SetPoint("TOPLEFT", blocked, "BOTTOMLEFT", 0, -10)
     availability:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
     availability:SetJustifyH("LEFT")
@@ -247,7 +247,7 @@ local function BuildFrame()
     -- Steps render as cards (see AcquireStepCard), built per mount in
     -- Detail:Show - flavor text is re-anchored below whichever card ends up
     -- last, so its starting anchor here is only a placeholder.
-    local flavor = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, 0.62, 0.62, 0.62)
+    local flavor = Brand.FS(f, "", Brand.BODY_FONT_PATH, 12, nil, Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
     flavor:SetPoint("TOPLEFT", stepsHeading, "BOTTOMLEFT", 0, -12)
     flavor:SetPoint("RIGHT", f, "RIGHT", -Brand.SAFE_MARGIN - 4, 0)
     flavor:SetJustifyH("LEFT")
@@ -292,6 +292,18 @@ function Detail:IsShown()
     return frame and frame:IsShown()
 end
 
+-- After a skin change: drops the popup so the next Show builds it again in the
+-- new colors. Returns the mount it was showing (or nil), so the caller can
+-- reopen it.
+function Detail:ResetSkin()
+    if not frame then return nil end
+    local entry = frame:IsShown() and frame.entry or nil
+    frame:Hide()
+    frame = nil
+    wipe(stepCardPool)
+    return entry
+end
+
 function Detail:Show(entry)
     if not entry then return end
 
@@ -304,13 +316,13 @@ function Detail:Show(entry)
 
     local category = entry.sourceLabel or "Unknown source"
     if entry.factionLabel then
-        category = category .. "  |cff999999(" .. entry.factionLabel .. ")|r"
+        category = category .. "  " .. Brand.HEX.DESC .. "(" .. entry.factionLabel .. ")|r"
     end
     -- How common the mount is among players, when the rarity data has a
     -- figure for it - small values show as "<0.1%" rather than a bare 0.
     local rarity = MountData:GetRarity(entry)
     if rarity then
-        category = category .. "  |cff999999(owned by " ..
+        category = category .. "  " .. Brand.HEX.DESC .. "(owned by " ..
             (rarity < 0.1 and "<0.1" or string.format("%.1f", rarity)) .. "% of players)|r"
     end
     f.categoryText:SetText(category)
@@ -348,7 +360,7 @@ function Detail:Show(entry)
     local missingProf = MountData:MissingProfession(entry)
     if why then
         f.blockedText:SetText("This character can't get it: " .. why)
-        f.blockedText:SetTextColor(0.87, 0.33, 0.33)
+        f.blockedText:SetTextColor(Brand.BAD_COLOR[1], Brand.BAD_COLOR[2], Brand.BAD_COLOR[3])
     elseif missingProf then
         -- A note, not a block: someone else can craft it, or it can be bought.
         f.blockedText:SetText("You don't have " .. missingProf ..
@@ -364,13 +376,13 @@ function Detail:Show(entry)
     if event then
         local live = MountData:IsHolidayActive(event)
         if live == true then
-            f.availabilityText:SetText("Only during |cffffffff" .. event ..
-                "|r - |cff44dd66running now|r")
+            f.availabilityText:SetText("Only during " .. Brand.HEX.BRIGHT .. event ..
+                "|r - " .. Brand.HEX.GOOD .. "running now|r")
         elseif live == false then
-            f.availabilityText:SetText("Only during |cffffffff" .. event ..
-                "|r - |cff888888not running right now|r")
+            f.availabilityText:SetText("Only during " .. Brand.HEX.BRIGHT .. event ..
+                "|r - " .. Brand.HEX.MUTED .. "not running right now|r")
         else
-            f.availabilityText:SetText("Only during |cffffffff" .. event .. "|r")
+            f.availabilityText:SetText("Only during " .. Brand.HEX.BRIGHT .. event .. "|r")
         end
     else
         f.availabilityText:SetText("")
@@ -387,7 +399,7 @@ function Detail:Show(entry)
     -- were.
     local lastAnchor = f.stepsHeading
     if stepCards then
-        local header = "Steps  |cff999999(" .. doneCount .. " of " .. totalSteps .. " done"
+        local header = "Steps  " .. Brand.HEX.DESC .. "(" .. doneCount .. " of " .. totalSteps .. " done"
         -- Say plainly when some steps can't be verified, so an unticked step
         -- doesn't look like the addon getting it wrong.
         if untracked > 0 then
@@ -406,7 +418,7 @@ function Detail:Show(entry)
             card.marker:SetText(MountData.StepMarker(info.status))
             local body = info.text
             if info.start then
-                body = body .. "\n|cff999999" .. info.start .. "|r"
+                body = body .. "\n" .. Brand.HEX.DESC .. info.start .. "|r"
             end
             card.text:SetText(body)
 
