@@ -25,5 +25,5 @@ L[13218] = { name = "Grunnda Wolfheart", mapID = 1459, x = 0.493, y = 0.825, fac
 L[13219] = { name = "Jekyll Flandring", mapID = 1416, x = 0.628, y = 0.593, faction = "Horde", types = { "mount" } }
 L[218115] = { name = "Mai'zin", mapID = 1434, x = 0.312, y = 0.484, faction = "Neutral", types = { "mount" } }
 L[256400] = { name = "Okamache", mapID = 1413, x = 0.487, y = 0.297, faction = "Horde", types = { "mount" } }
-L[256736] = { name = "Huey Sunnydale", mapID = 1433, x = 0.081, y = 0.718, faction = "Alliance", types = { "mount" } }
-L[265756] = { name = "Genn Fairweather", mapID = 2521, x = 0.531, y = 0.807, faction = "Neutral", types = { "mount" } }
+L[256736] = { name = "Huey Sunnydale", mapID = 1433, x = 0.080, y = 0.716, faction = "Alliance", types = { "mount" } }
+L[265756] = { name = "Genn Fairweather", mapID = 2521, x = 0.538, y = 0.813, faction = "Neutral", types = { "mount" } }
