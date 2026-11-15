@@ -25,33 +25,36 @@ local Brand = addonTable.BrandStyle
 -- as Xpedited Routes kept its own old accent constant around unused rather
 -- than deleting it outright.
 Brand.ACCENT = { 0.72, 0.30, 0.0 }    -- deep, dark, burnt orange - RETIRED 2026-09-27, see Brand.HEADER_COLOR
-Brand.GOLD   = { 0.60, 0.47, 0.30 }   -- secondary/body text tone - unaffected, a separate muted body-copy tone
-Brand.BG     = { 0.03, 0.028, 0.06, 1 } -- dark indigo leaning purple, #08070f (was near-black, 2026-09-02 rebrand)
 
--- #681417, a dark brick red - the ONE accent color for this addon, no
--- exceptions (confirmed 2026-09-25, family-wide): window title text, the
--- header divider under it, section headers within a page, action links/
--- buttons, checkbox/edit-box borders, tab labels, the zone-alert icon's
--- glow - literally everywhere the old separate orange (Brand.ACCENT) was
--- used. There is no carved-out exception anywhere in this addon for a
--- second accent color.
-Brand.HEADER_COLOR = { 0.4078, 0.0784, 0.0902 }
+-- ── Skin colors ───────────────────────────────────────────────
+-- Every color the UI uses comes from one of these tables, and every one is
+-- filled IN PLACE by the chosen skin (XalsSkins.lua, the shared family file,
+-- via Brand.ApplySkin below). The values written here are only the Crimson
+-- skin's, the load-time starting point. Anything that needs a color reads it
+-- from here when it is built - never hardcode one in a window.
+Brand.BG           = { 0.03, 0.028, 0.06, 1 }   -- window background
+Brand.WINDOW_BG    = Brand.BG                    -- the skin file names it this; same table
+Brand.PANEL_COLOR  = { 0.03, 0.028, 0.06 }       -- content area
+Brand.HEADER_COLOR = { 0.4078, 0.0784, 0.0902 }  -- the accent: titles, section headers, links, borders of inputs
+Brand.TEXT_COLOR   = { 0.4078, 0.0784, 0.0902 }  -- checkbox / slider labels
+Brand.BODY_COLOR   = { 0.85, 0.85, 0.85 }        -- plain reading text
+Brand.GOLD         = Brand.BODY_COLOR            -- this addon's old name for body text; same table
+Brand.DESC_COLOR   = { 0.62, 0.62, 0.62 }        -- dim description text
+Brand.DIVIDER_COLOR = { 0.0627, 0.0627, 0.1255 } -- dividers and window/card edges (structural, not an accent)
+Brand.TAB_COLOR    = { 0.588, 0.588, 0.824 }     -- tabs that are not selected
+Brand.SIDEBAR_UNSELECTED = Brand.TAB_COLOR       -- this addon's old name for it; same table
+Brand.TAB_SELECTED_COLOR = { 0.8, 0.188, 0.212 } -- the selected tab
+Brand.HOVER_COLOR  = { 1, 1, 1 }                 -- what a link turns under the mouse; also "bright" text
+Brand.IS_LIGHT     = false                       -- true on a light skin
+Brand.CARD_BG      = { 0.082, 0.078, 0.149, 1 }  -- raised card fill (derived from the skin below)
 
--- Confirmed color for every OTHER divider (section dividers within a page,
--- list dividers) and panel/window edges - #101020, a near-black indigo.
--- Was (0.16, 0.12, 0.05), a muted brown, for dividers, and orange for
--- borders, before this. Family-wide rollout confirmed 2026-09-20. Distinct
--- concept from HEADER_COLOR above - this is not an accent color, it's the
--- structural line/edge color.
-Brand.DIVIDER_COLOR = { 0.0627, 0.0627, 0.1255 }
+-- Derived by Brand.ApplySkin: colors that depend on the skin but are not in the palette.
+Brand.ON_ACCENT    = { 1, 1, 1 }                 -- text on top of an accent-colored shape (the count badge)
+Brand.INPUT_BG       = { 0.1, 0.1, 0.1, 0.6 }    -- checkbox / text box fill
+Brand.INPUT_BG_HOVER = { 0.18, 0.18, 0.18, 0.75 }
+Brand.TRACK_COLOR  = { 1, 1, 1, 0.08 }           -- scrollbar track
+Brand.HEX = {}                                   -- the same colors as |cffRRGGBB strings, for inline text
 
--- #323264, a muted blue-gray - confirmed 2026-09-20, family-wide. For an
--- UNSELECTED entry in a set of tabs/sidebar links where one is always the
--- current selection (e.g. this addon's Zone/All/Raids/Dungeons tabs) - the
--- selected one uses HEADER_COLOR above, everything else this. Was HEADER_
--- COLOR for both states before, which read as "every tab is active at
--- once" instead of showing one clear current tab.
-Brand.SIDEBAR_UNSELECTED = { 0.196, 0.196, 0.392 }
 Brand.LINE_THICKNESS = 2 -- minimum for ANY border/divider - never go below this
 -- Minimum gap between a panel's true outer edge and the nearest button/text
 -- (close buttons especially). DrawBorder()'s line occupies out to 8px in
@@ -62,6 +65,72 @@ Brand.LINE_THICKNESS = 2 -- minimum for ANY border/divider - never go below this
 -- space beyond the border) after seeing this live in-game - confirmed
 -- 2026-08-09.
 Brand.SAFE_MARGIN = 14
+
+-- ── Skins ─────────────────────────────────────────────────────
+-- Brand.ApplySkin(key) copies a skin's palette into the color tables above (that
+-- part is XalsSkins.lua's Skins.Apply) and then works out the few colors that
+-- are not in the palette but depend on it. Call it once at load, before any
+-- window is built; for a live change, call it and then rebuild the windows
+-- (each module has a ResetSkin for that - see SettingsPanel:ApplySkinLive).
+local function ToHex(c)
+    return string.format("|cff%02x%02x%02x",
+        math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5))
+end
+Brand.ToHex = ToHex
+
+Brand.BAD_COLOR = { 0.87, 0.33, 0.33 } -- "can't do this" red, readable on the skin's background
+
+function Brand.ApplySkin(key)
+    local Skins = addonTable.Skins
+    if Skins and Skins.Apply then
+        key = Skins.Apply(Brand, key)
+    else
+        key = "current"
+    end
+    local light = Brand.IS_LIGHT
+
+    -- A card is a raised box: the skin's panel color when that differs from the
+    -- window, otherwise the window lightened a little.
+    local W, P, card = Brand.BG, Brand.PANEL_COLOR, Brand.CARD_BG
+    if math.abs(W[1] - P[1]) + math.abs(W[2] - P[2]) + math.abs(W[3] - P[3]) > 0.01 then
+        card[1], card[2], card[3] = P[1], P[2], P[3]
+    else
+        card[1], card[2], card[3] = W[1] + (1 - W[1]) * 0.07, W[2] + (1 - W[2]) * 0.07, W[3] + (1 - W[3]) * 0.07
+    end
+    card[4] = 1
+
+    -- Text on an accent-colored shape: dark on a bright accent, white on a dark one.
+    local H = Brand.HEADER_COLOR
+    local bright = (0.2126 * H[1] + 0.7152 * H[2] + 0.0722 * H[3]) > 0.5
+    local on = Brand.ON_ACCENT
+    if bright then on[1], on[2], on[3] = 0.1, 0.08, 0.06 else on[1], on[2], on[3] = 1, 1, 1 end
+
+    local a, h, t = Brand.INPUT_BG, Brand.INPUT_BG_HOVER, Brand.TRACK_COLOR
+    if light then
+        a[1], a[2], a[3], a[4] = 0.78, 0.72, 0.58, 0.7
+        h[1], h[2], h[3], h[4] = 0.70, 0.63, 0.48, 0.85
+        t[1], t[2], t[3], t[4] = 0, 0, 0, 0.10
+        Brand.BAD_COLOR[1], Brand.BAD_COLOR[2], Brand.BAD_COLOR[3] = 0.61, 0.13, 0.15
+    else
+        a[1], a[2], a[3], a[4] = 0.1, 0.1, 0.1, 0.6
+        h[1], h[2], h[3], h[4] = 0.18, 0.18, 0.18, 0.75
+        t[1], t[2], t[3], t[4] = 1, 1, 1, 0.08
+        Brand.BAD_COLOR[1], Brand.BAD_COLOR[2], Brand.BAD_COLOR[3] = 0.87, 0.33, 0.33
+    end
+
+    -- Inline-text colors (|cffRRGGBB). Status colors are darker on a light skin so
+    -- they stay readable.
+    local hex = Brand.HEX
+    hex.DESC = ToHex(Brand.DESC_COLOR)
+    hex.BRIGHT = ToHex(Brand.HOVER_COLOR)
+    hex.GOOD = light and "|cff1f6b34" or "|cff44dd66"
+    hex.BAD = light and "|cff9b2226" or "|cffdd5555"
+    hex.WARN = light and "|cff7a5200" or "|cffb88c38"
+    hex.MUTED = light and "|cff5c5040" or "|cff888888"
+    hex.LINK = light and "|cff1f4f9a" or "|cff5599ff"
+    return key
+end
+Brand.ApplySkin("current") -- the load-time default; the saved choice is applied at login (Engine.lua)
 
 -- ── T()  ─ solid-colour texture rectangle.
 -- x, y measured from the parent's TOP-LEFT corner (y increases downward).
@@ -106,6 +175,8 @@ Brand.BODY_FONT_PATH_SEMIBOLD = "Interface\\AddOns\\XalsReins\\Fonts\\Inter-Semi
 -- Brand.HEADER_COLOR (was Brand.ACCENT) - family-wide rollout, 2026-09-20.
 function Brand.Title(parent, text, size, anchorPoint, relTo, relPoint, x, y)
     local shadow = Brand.FS(parent, text, Brand.TITLE_FONT_PATH, size, "OUTLINE", 0, 0, 0)
+    -- A solid black drop-shadow is heavy on a light skin; fade it there.
+    if Brand.IS_LIGHT then shadow:SetAlpha(0.25) end
     PixelUtil.SetPoint(shadow, anchorPoint, relTo, relPoint, x + 4, y - 4)
     shadow:SetJustifyH("CENTER")
 
@@ -137,8 +208,9 @@ function Brand.MakeButton(parent, text, w, h, onClick)
     label:SetTextColor(BTN_LABEL_UNSELECTED[1], BTN_LABEL_UNSELECTED[2], BTN_LABEL_UNSELECTED[3], 1)
     btn.label = label
 
+    local HOVER = Brand.HOVER_COLOR
     btn:SetScript("OnEnter", function(self)
-        if not self.selected then label:SetTextColor(1, 1, 1, 1) end
+        if not self.selected then label:SetTextColor(HOVER[1], HOVER[2], HOVER[3], 1) end
     end)
     btn:SetScript("OnLeave", function(self)
         if not self.selected then
@@ -150,7 +222,7 @@ function Brand.MakeButton(parent, text, w, h, onClick)
     function btn:SetSelected(selected)
         self.selected = selected
         if selected then
-            label:SetTextColor(1, 1, 1, 1)
+            label:SetTextColor(HOVER[1], HOVER[2], HOVER[3], 1)
         else
             label:SetTextColor(BTN_LABEL_UNSELECTED[1], BTN_LABEL_UNSELECTED[2], BTN_LABEL_UNSELECTED[3], 1)
         end
@@ -185,7 +257,10 @@ function Brand.MakeLinkButton(parent)
         btn.baseColor = { r or Brand.HEADER_COLOR[1], g or Brand.HEADER_COLOR[2], b or Brand.HEADER_COLOR[3] }
     end
 
-    btn:HookScript("OnEnter", function() label:SetTextColor(1, 1, 1, 1) end)
+    btn:HookScript("OnEnter", function()
+        local hv = Brand.HOVER_COLOR
+        label:SetTextColor(hv[1], hv[2], hv[3], 1)
+    end)
     btn:HookScript("OnLeave", function()
         local c = btn.baseColor or Brand.HEADER_COLOR
         label:SetTextColor(c[1], c[2], c[3], 1)
@@ -257,8 +332,6 @@ end
 -- reads as a raised box instead of just an outline. Sits one sublevel
 -- below the default BACKGROUND layer so a card's hover highlight (drawn at
 -- the default sublevel) still lands on top of it.
-Brand.CARD_BG = { 0.082, 0.078, 0.149, 1 }
-
 function Brand.ApplyCardBackground(f)
     local bg = f:CreateTexture(nil, "BACKGROUND", nil, -1)
     bg:SetAllPoints()
@@ -295,9 +368,10 @@ function Brand.MakeCheckbox(parent, size)
     local cb = CreateFrame("Button", nil, parent)
     PixelUtil.SetSize(cb, size, size)
 
+    local rest, over = Brand.INPUT_BG, Brand.INPUT_BG_HOVER
     local bg = cb:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0.1, 0.1, 0.1, 0.6)
+    bg:SetColorTexture(rest[1], rest[2], rest[3], rest[4])
 
     local thick = Brand.LINE_THICKNESS
     local r, g, b = Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3]
@@ -348,8 +422,8 @@ function Brand.MakeCheckbox(parent, size)
         return self.checked
     end
 
-    cb:SetScript("OnEnter", function() bg:SetColorTexture(0.18, 0.18, 0.18, 0.75) end)
-    cb:SetScript("OnLeave", function() bg:SetColorTexture(0.1, 0.1, 0.1, 0.6) end)
+    cb:SetScript("OnEnter", function() bg:SetColorTexture(over[1], over[2], over[3], over[4]) end)
+    cb:SetScript("OnLeave", function() bg:SetColorTexture(rest[1], rest[2], rest[3], rest[4]) end)
     cb:SetScript("OnClick", function(self)
         self:SetChecked(not self.checked)
         if self.OnToggle then self.OnToggle(self) end
@@ -458,7 +532,10 @@ function Brand.MakeTextLink(parent, text, onClick)
     btn.label = label
     btn:SetWidth(math.max(40, label:GetStringWidth() + 8))
 
-    btn:SetScript("OnEnter", function() label:SetTextColor(1, 1, 1, 1) end)
+    btn:SetScript("OnEnter", function()
+        local hv = Brand.HOVER_COLOR
+        label:SetTextColor(hv[1], hv[2], hv[3], 1)
+    end)
     btn:SetScript("OnLeave", function()
         label:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
     end)
@@ -482,7 +559,7 @@ function Brand.MakeEditBox(parent, w, h)
 
     local bg = box:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0.1, 0.1, 0.1, 0.6)
+    bg:SetColorTexture(Brand.INPUT_BG[1], Brand.INPUT_BG[2], Brand.INPUT_BG[3], Brand.INPUT_BG[4])
 
     local thick = Brand.LINE_THICKNESS
     local r, g, b = Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3]
@@ -512,7 +589,7 @@ function Brand.MakeEditBox(parent, w, h)
     borderRight:SetColorTexture(r, g, b, 1)
 
     box:SetFont(Brand.BODY_FONT_PATH, 13, "")
-    box:SetTextColor(0.9, 0.9, 0.9, 1)
+    box:SetTextColor(Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3], 1)
     box:SetTextInsets(6, 6, 0, 0)
     box:SetAutoFocus(false)
 
@@ -632,7 +709,8 @@ function Brand.ShowCopyBox(caption, url)
         box:SetScript("OnEscapePressed", function() f:Hide() end)
         f.box = box
 
-        local hint = Brand.FS(f, "Ctrl+C to copy", Brand.BODY_FONT_PATH, 11, nil, 0.6, 0.6, 0.6)
+        local hint = Brand.FS(f, "Ctrl+C to copy", Brand.BODY_FONT_PATH, 11, nil,
+            Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
         hint:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 2, -6)
 
         local close = Brand.MakeCloseButton(f, function() f:Hide() end)
@@ -649,4 +727,13 @@ function Brand.ShowCopyBox(caption, url)
     copyFrame:Show()
     copyFrame.box:SetFocus()
     copyFrame.box:HighlightText()
+end
+
+-- Drops the two cached popups so they are built again, in the new colors, the
+-- next time they are used (called after a skin change).
+function Brand.ResetSkinCaches()
+    if copyFrame then copyFrame:Hide() end
+    copyFrame = nil
+    if contextMenu then contextMenu:Hide() end
+    contextMenu = nil
 end
