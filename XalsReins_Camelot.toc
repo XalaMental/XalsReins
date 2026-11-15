@@ -16,12 +16,14 @@ libs\LibDBIcon\LibDBIcon-1.0.lua
 
 Bootstrap.lua
 BrandStyle.lua
+XalsSkins.lua
 ForeverVendorLocations.lua
 VideoLinks.lua
 Unobtainable.lua
 ForeverUnobtainable.lua
 ForeverObtainable.lua
 ForeverInstances.lua
+ForeverSources.lua
 ForeverMountSteps.lua
 MountData.lua
 WhatsNew.lua
