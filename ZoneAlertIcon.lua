@@ -33,6 +33,7 @@ local ICON_PATH = "Interface\\AddOns\\XalsReins\\Textures\\MinimapIcon_v1.png"
 local BADGE_RATIO = 22 / 64
 
 local icon
+local DEFAULT_X, DEFAULT_Y = 250, 260
 
 -- Every mount in the to-do list that matches the zone you're standing in
 -- right now - not just the first one. Reuses the exact same to-do/zone-
@@ -69,11 +70,12 @@ local function BuildIcon()
     f:RegisterForDrag("LeftButton")
     f:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
+    f:SetScale((type(XalsReinsDB) == "table" and tonumber(XalsReinsDB.zoneIconScale)) or 1)
     local pos = type(XalsReinsDB) == "table" and XalsReinsDB.zoneIconPos or nil
     if pos and pos.x then
         f:SetPoint("CENTER", UIParent, "CENTER", pos.x, pos.y)
     else
-        f:SetPoint("CENTER", UIParent, "CENTER", 250, 260)
+        f:SetPoint("CENTER", UIParent, "CENTER", DEFAULT_X, DEFAULT_Y)
     end
 
     -- No circular backing/border - just the bare saddle art, per the locked
@@ -126,16 +128,19 @@ local function BuildIcon()
 
     local badgeText = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     badgeText:SetPoint("CENTER", badge, "CENTER", 0, 0)
-    badgeText:SetTextColor(1, 1, 1, 1)
+    badgeText:SetTextColor(Brand.ON_ACCENT[1], Brand.ON_ACCENT[2], Brand.ON_ACCENT[3], 1)
     badge.text = badgeText
 
     f:SetScript("OnDragStart", function(self) self:StartMoving() end)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
+        -- The offset is in the icon's own (scaled) coordinates, so a size other
+        -- than 100% has to be divided out or the icon jumps when it is re-placed.
         local cx, cy = self:GetCenter()
         local ux, uy = UIParent:GetCenter()
+        local s = self:GetEffectiveScale() / UIParent:GetEffectiveScale()
         if type(XalsReinsDB) == "table" then
-            XalsReinsDB.zoneIconPos = { x = cx - ux, y = cy - uy }
+            XalsReinsDB.zoneIconPos = { x = cx - ux / s, y = cy - uy / s }
         end
     end)
 
@@ -172,7 +177,8 @@ function Alert:UpdateVisibility()
     local zoneMounts = ZoneMounts()
     local hasZoneMount = #zoneMounts > 0
 
-    if hasZoneMount then
+    local hiddenBySetting = type(XalsReinsDB) == "table" and XalsReinsDB.zoneIconHide
+    if hasZoneMount and not hiddenBySetting then
         f:Show()
     else
         f:Hide()
@@ -190,6 +196,36 @@ function Alert:UpdateVisibility()
         f.badge:Hide()
         f.badgeRing:Hide()
     end
+end
+
+-- The settings page's "Show the zone alert icon" checkbox.
+function Alert:SetShown(show)
+    if type(XalsReinsDB) == "table" then XalsReinsDB.zoneIconHide = (not show) or nil end
+    self:UpdateVisibility()
+end
+
+-- The settings page's size slider.
+function Alert:ApplyScale()
+    if not icon then return end
+    icon:SetScale((type(XalsReinsDB) == "table" and tonumber(XalsReinsDB.zoneIconScale)) or 1)
+end
+
+-- Puts the icon back where it starts.
+function Alert:ResetPosition()
+    if type(XalsReinsDB) == "table" then XalsReinsDB.zoneIconPos = nil end
+    if not icon then return end
+    icon:ClearAllPoints()
+    icon:SetPoint("CENTER", UIParent, "CENTER", DEFAULT_X, DEFAULT_Y)
+end
+
+-- After a skin change: recolors the icon that already exists.
+function Alert:ApplySkin()
+    if not icon then return end
+    local H = Brand.HEADER_COLOR
+    icon.glow:SetVertexColor(H[1], H[2], H[3])
+    icon.badge:SetVertexColor(H[1], H[2], H[3])
+    icon.badgeRing:SetVertexColor(Brand.BG[1], Brand.BG[2], Brand.BG[3])
+    icon.badge.text:SetTextColor(Brand.ON_ACCENT[1], Brand.ON_ACCENT[2], Brand.ON_ACCENT[3], 1)
 end
 
 -- Call once from Engine's Init, after the roster has been built.
