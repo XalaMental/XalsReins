@@ -255,6 +255,13 @@ function MountData:Build()
                 isCollected       = isCollected,
             }
 
+            -- WoW Forever: the journal says "Unknown" for most mounts, so the row
+            -- says how you get it from the Forever data instead.
+            if FOREVER and entry.sourceLabel == "Unknown" then
+                local info = addonTable.ForeverSources and addonTable.ForeverSources[name]
+                if info and info.label then entry.sourceLabel = info.label end
+            end
+
             self:EvaluateAcquisition(entry)
 
             roster[#roster + 1] = entry
@@ -426,7 +433,22 @@ end
 -- directly rather than substring-matching the whole blob, which is both more
 -- accurate and immune to a zone name appearing incidentally in some other
 -- line. Uses the client's own localized ZONE label.
+-- WoW Forever: where the mount comes from, from ForeverSources.lua (nil on Retail, or
+-- for a mount the data has nothing on). The Forever journal gives most mounts
+-- little or no source text, so the Zone, Raids and Dungeons tabs and the
+-- sections would have nothing to read there.
+local function ForeverInfo(entry)
+    local all = FOREVER and addonTable.ForeverSources
+    return all and entry and entry.name and all[entry.name] or nil
+end
+
 function MountData:GetSourceZone(entry)
+    local info = ForeverInfo(entry)
+    if info then
+        local place = info.place or (info.zones and info.zones[1])
+        if place then return place end
+    end
+
     local extra = self:GetExtra(entry.mountID)
     local source = extra and extra.source
     if not source or source == "" then return nil end
@@ -558,6 +580,20 @@ function MountData:MatchesCurrentZone(entry, zoneNames)
     zoneNames = zoneNames or self:CurrentZoneNames()
     if #zoneNames == 0 then return false end
 
+    -- WoW Forever: the data lists every zone (and the raid or dungeon) the mount
+    -- comes from.
+    local info = ForeverInfo(entry)
+    if info then
+        local places = {}
+        if info.place then places[#places + 1] = info.place:lower() end
+        for _, z in ipairs(info.zones or {}) do places[#places + 1] = z:lower() end
+        for _, place in ipairs(places) do
+            for i = 1, #zoneNames do
+                if place == zoneNames[i] or zoneNames[i]:find(place, 1, true) then return true end
+            end
+        end
+    end
+
     -- Preferred: the explicit labelled zone.
     local sourceZone = self:GetSourceZone(entry)
     if sourceZone then
@@ -659,6 +695,7 @@ MountData.SECTION_LIMITED     = "Limited Time"
 MountData.SECTION_CRAFTING    = "Crafting"
 MountData.SECTION_REPUTATION  = "Reputation"
 MountData.SECTION_ACHIEVEMENT = "Achievements"
+MountData.SECTION_PVP         = "PvP"
 MountData.SECTION_UNKNOWN     = "Uncategorised"
 
 -- Matched against the pet-journal source labels. These are localized strings,
@@ -730,6 +767,14 @@ function MountData:SectionFor(entry)
         return self.SECTION_LIMITED
     end
 
+    -- WoW Forever: the data says whether it is a crafted, reputation or PvP mount.
+    local forever = ForeverInfo(entry)
+    if forever then
+        if forever.craft then return self.SECTION_CRAFTING end
+        if forever.rep then return self.SECTION_REPUTATION end
+        if forever.pvp then return self.SECTION_PVP end
+    end
+
     if entry.sourceLabel == "Profession" or self:GetSourceProfession(entry) then
         return self.SECTION_CRAFTING
     end
@@ -760,7 +805,7 @@ function MountData:GroupIntoSections(list, includeZones)
         local key = self:SectionFor(entry)
         local isNamed = key == self.SECTION_LIMITED or key == self.SECTION_CRAFTING
             or key == self.SECTION_REPUTATION or key == self.SECTION_ACHIEVEMENT
-            or key == self.SECTION_UNKNOWN
+            or key == self.SECTION_PVP or key == self.SECTION_UNKNOWN
 
         if not isNamed and not includeZones then
             key = "This Zone"
@@ -784,6 +829,7 @@ function MountData:GroupIntoSections(list, includeZones)
         self.SECTION_CRAFTING,
         self.SECTION_REPUTATION,
         self.SECTION_ACHIEVEMENT,
+        self.SECTION_PVP,
         "This Zone",
     }
     for i = 1, #zoneNames do order[#order + 1] = zoneNames[i] end
@@ -1058,11 +1104,11 @@ end
 -- per-step cards so they can never disagree.
 function MountData.StepMarker(status)
     if status == true then
-        return "|cff44dd66v|r"
+        return addonTable.BrandStyle.HEX.GOOD .. "v|r"
     elseif status == false then
-        return "|cffdd5555x|r"
+        return addonTable.BrandStyle.HEX.BAD .. "x|r"
     end
-    return "|cff999999?|r"
+    return addonTable.BrandStyle.HEX.DESC .. "?|r"
 end
 
 -- Steps as structured data, one entry per step, checked against this
@@ -1108,12 +1154,12 @@ function MountData:GetStepCards(entry)
         if step.questID then
             local title = self:GetQuestTitle(step.questID)
             if title and not text:find(title, 1, true) then
-                text = text .. "  |cffffd100(" .. title .. ")|r"
+                text = text .. "  " .. addonTable.BrandStyle.HEX.WARN .. "(" .. title .. ")|r"
             end
         end
 
         if kind then
-            text = "|cff5599ff|Hxalsreins:" .. kind .. ":" .. id .. "|h[" .. text .. "]|h|r"
+            text = addonTable.BrandStyle.HEX.LINK .. "|Hxalsreins:" .. kind .. ":" .. id .. "|h[" .. text .. "]|h|r"
         end
 
         -- Where the quest actually starts. A bare quest name is useless if you
@@ -1141,7 +1187,7 @@ function MountData:GetStepLines(entry)
         local c = cards[i]
         lines[#lines + 1] = self.StepMarker(c.status) .. " " .. c.text
         if c.start then
-            lines[#lines + 1] = "   |cff999999" .. c.start .. "|r"
+            lines[#lines + 1] = "   " .. addonTable.BrandStyle.HEX.DESC .. c.start .. "|r"
         end
     end
 
