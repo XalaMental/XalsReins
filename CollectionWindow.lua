@@ -53,7 +53,7 @@ local function AcquireRow(index)
     source:SetJustifyH("RIGHT")
     row.sourceText = source
 
-    local name = Brand.FS(row, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    local name = Brand.FS(row, "", Brand.BODY_FONT_PATH, 13, nil, Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
     name:SetPoint("LEFT", icon, "RIGHT", 8, 0)
     name:SetPoint("RIGHT", source, "LEFT", -8, 0)
     name:SetJustifyH("LEFT")
@@ -113,7 +113,7 @@ function Collection:Refresh()
         if filterText ~= "" then
             countText:SetText(#list .. " of " .. stats.collected .. " collected match")
         else
-            countText:SetText(stats.collected .. " collected  |cff999999of " ..
+            countText:SetText(stats.collected .. " collected  " .. Brand.HEX.DESC .. "of " ..
                 stats.total .. " in the game|r")
         end
     else
@@ -188,7 +188,7 @@ local function BuildWindow()
     scrollTrack:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", 10, 0)
     scrollTrack:SetWidth(8)
     scrollTrack:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
-    scrollTrack:SetBackdropColor(1, 1, 1, 0.08)
+    scrollTrack:SetBackdropColor(Brand.TRACK_COLOR[1], Brand.TRACK_COLOR[2], Brand.TRACK_COLOR[3], Brand.TRACK_COLOR[4])
     scrollTrack:Hide()
 
     local scrollThumb = CreateFrame("Slider", nil, scrollTrack)
@@ -261,4 +261,15 @@ end
 
 function Collection:IsShown()
     return frame and frame:IsShown()
+end
+
+-- After a skin change: drops the window so the next Toggle builds it again in
+-- the new colors. Returns whether it was open, so the caller can reopen it.
+function Collection:ResetSkin()
+    if not frame then return false end
+    local wasShown = frame:IsShown()
+    frame:Hide()
+    frame, scrollFrame, scrollChild, content, countText, searchBox = nil, nil, nil, nil, nil, nil
+    wipe(rows)
+    return wasShown
 end
