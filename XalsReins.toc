@@ -17,6 +17,7 @@ libs\MountsRarity\MountsRarity-2.0.xml
 
 Bootstrap.lua
 BrandStyle.lua
+XalsSkins.lua
 VendorLocations.lua
 VideoLinks.lua
 Unobtainable.lua
