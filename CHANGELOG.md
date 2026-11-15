@@ -1,5 +1,33 @@
 # Xal's Reins - Changelog
 
+## 1.6.0 - November 15, 2026
+
+---
+
+Reins got a proper makeover this time. I was stuck on my own styling for a long time and it made everything look dark and brooding, so there are now six skins to pick from. Crimson is still there if you like it, but the new default is Indigo slate, and when you switch, every window changes right away. The settings window was also still just a bare list, so it's now a real settings window like my other addons, with the zone alert options in it: turn it off, make it bigger or smaller, or put it back where it started if you lose it.
+
+The bigger thing is WoW Forever. I found out the zone alert, the Zone tab and the Raids and Dungeons tabs were basically empty over there, because Forever's mount list doesn't say where most mounts come from. So I gave Reins that information itself, and those tabs and the zone alert now work on Forever the way they do on Retail. Reins also has a new icon to match the rest of the Xal family.
+
+Thanks for being part of the Xal family.
+
+### 🆕 New
+
+- **Skins** - six color skins: Crimson, Ember, Bronze ledger, Midnight, Indigo slate and a light Parchment. Pick one in settings and every window changes right away.
+- **A real settings window** - a sidebar with Home, Zone alert, Minimap and Skin, and one card for each setting.
+- **Zone alert options** - show or hide the icon, make it bigger or smaller, and put it back where it started.
+- **A new icon** - a bright, rounded saddle icon that matches the rest of the Xal's addons.
+- **On WoW Forever, every mount says how you get it** - Vendor, Drop, Quest, Reputation, Profession or PvP - and PvP mounts have their own section.
+
+### ⚙️ Changed
+
+- **Indigo slate is the new default look.** Crimson is still there as a choice.
+- **The selected tab is a brighter color**, so it's easier to see which one is open.
+
+### 🔧 Fixed
+
+- On WoW Forever, the zone alert, the Zone tab and the Raids and Dungeons tabs were empty. They now work.
+- On WoW Forever, racial mounts no longer ask for Exalted reputation they don't need.
+
 ## 1.5.0 - November 6, 2026
 
 ---
