@@ -43,7 +43,7 @@ local tabButtons = {}
 local function UpdateTabLook()
     for key, btn in pairs(tabButtons) do
         if key == activeTab then
-            btn.label:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 1)
+            btn.label:SetTextColor(Brand.TAB_SELECTED_COLOR[1], Brand.TAB_SELECTED_COLOR[2], Brand.TAB_SELECTED_COLOR[3], 1)
         else
             btn.label:SetTextColor(Brand.SIDEBAR_UNSELECTED[1], Brand.SIDEBAR_UNSELECTED[2], Brand.SIDEBAR_UNSELECTED[3], 1)
         end
@@ -109,12 +109,12 @@ local function AcquireRow(index)
     source:SetJustifyH("RIGHT")
     row.sourceText = source
 
-    local tag = Brand.FS(row, "", Brand.BODY_FONT_PATH, 11, nil, 1, 1, 1)
+    local tag = Brand.FS(row, "", Brand.BODY_FONT_PATH, 11, nil, Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
     tag:SetPoint("RIGHT", source, "LEFT", -8, 0)
     tag:SetJustifyH("RIGHT")
     row.tagText = tag
 
-    local name = Brand.FS(row, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    local name = Brand.FS(row, "", Brand.BODY_FONT_PATH, 13, nil, Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
     name:SetPoint("LEFT", icon, "RIGHT", 8, 0)
     -- Name takes whatever room the tag and source labels leave, so a long
     -- mount name truncates instead of running underneath them.
@@ -176,7 +176,7 @@ local function AcquireWipCard(index)
     percent:SetPoint("RIGHT", card, "RIGHT", -10, 0)
     card.percentText = percent
 
-    local name = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, 1, 1, 1)
+    local name = Brand.FS(card, "", Brand.BODY_FONT_PATH, 13, nil, Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
     name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -4)
     name:SetPoint("RIGHT", percent, "LEFT", -8, 0)
     name:SetJustifyH("LEFT")
@@ -360,7 +360,7 @@ function Tracker:Refresh()
         if item.sectionName then
             row.icon:SetTexture(nil)
             row.tagText:SetText("")
-            row.sourceText:SetText("|cff999999" .. item.count .. "|r")
+            row.sourceText:SetText(Brand.HEX.DESC .. item.count .. "|r")
             row.nameText:SetText((item.collapsed and "+  " or "-  ") .. item.sectionName)
             row.nameText:SetTextColor(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3])
             row:Show()
@@ -375,26 +375,26 @@ function Tracker:Refresh()
             -- all 700 would be pure noise.
             if typedText == "" then
                 row.tagText:SetText("")
-                row.nameText:SetTextColor(1, 1, 1)
+                row.nameText:SetTextColor(Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
             elseif entry.isCollected then
-                row.tagText:SetText("|cff44dd66Collected|r")
-                row.nameText:SetTextColor(0.65, 0.65, 0.65)
+                row.tagText:SetText(Brand.HEX.GOOD .. "Collected|r")
+                row.nameText:SetTextColor(Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
             elseif not entry.canAcquire or entry.refinedBlocked then
-                row.tagText:SetText("|cffdd5555Can't get|r")
-                row.nameText:SetTextColor(0.65, 0.65, 0.65)
+                row.tagText:SetText(Brand.HEX.BAD .. "Can't get|r")
+                row.nameText:SetTextColor(Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
             elseif MountData:IsUnobtainable(entry) then
                 -- Closed events. Nobody can get these any more, so "Needed"
                 -- would be actively misleading.
-                row.tagText:SetText("|cff888888Gone|r")
-                row.nameText:SetTextColor(0.55, 0.55, 0.55)
+                row.tagText:SetText(Brand.HEX.MUTED .. "Gone|r")
+                row.nameText:SetTextColor(Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
             elseif MountData:IsTradingPost(entry)
                 and MountData:IsOfferedThisMonth(entry) == false then
                 -- Out of rotation rather than gone for good; it'll come back.
-                row.tagText:SetText("|cff888888Not this month|r")
-                row.nameText:SetTextColor(0.55, 0.55, 0.55)
+                row.tagText:SetText(Brand.HEX.MUTED .. "Not this month|r")
+                row.nameText:SetTextColor(Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
             else
-                row.tagText:SetText("|cffb88c38Needed|r")
-                row.nameText:SetTextColor(1, 1, 1)
+                row.tagText:SetText(Brand.HEX.WARN .. "Needed|r")
+                row.nameText:SetTextColor(Brand.HOVER_COLOR[1], Brand.HOVER_COLOR[2], Brand.HOVER_COLOR[3])
             end
 
             row:Show()
@@ -409,16 +409,16 @@ function Tracker:Refresh()
 
     local stats = MountData.stats
     if activeTab == "zone" and typedText == "" then
-        countText:SetText(#todo .. " here  |cff999999in " .. (GetRealZoneText() or "?") .. "|r")
+        countText:SetText(#todo .. " here  " .. Brand.HEX.DESC .. "in " .. (GetRealZoneText() or "?") .. "|r")
     elseif typedText ~= "" then
         countText:SetText(#todo .. " match" .. (#todo == 1 and "" or "es") ..
-            "  |cff999999across all mounts|r")
+            "  " .. Brand.HEX.DESC .. "across all mounts|r")
     elseif activeTab == "raids" then
         countText:SetText(shown .. " still to get from raids")
     elseif activeTab == "dungeons" then
         countText:SetText(shown .. " still to get from dungeons")
     elseif stats then
-        countText:SetText(#todo .. " to collect  |cff999999(" ..
+        countText:SetText(#todo .. " to collect  " .. Brand.HEX.DESC .. "(" ..
             stats.collected .. " of " .. stats.total .. " owned)|r")
     else
         countText:SetText(#todo .. " to collect")
@@ -554,7 +554,7 @@ local function BuildWindow()
 
     local placeholder = searchBox:CreateFontString(nil, "OVERLAY")
     placeholder:SetFont(Brand.BODY_FONT_PATH, 12, "")
-    placeholder:SetTextColor(0.5, 0.5, 0.5)
+    placeholder:SetTextColor(Brand.DESC_COLOR[1], Brand.DESC_COLOR[2], Brand.DESC_COLOR[3])
     placeholder:SetPoint("LEFT", searchBox, "LEFT", 6, 0)
     placeholder:SetText("Search mounts...")
 
@@ -618,11 +618,11 @@ local function BuildWindow()
                 fs:SetFont(Brand.BODY_FONT_PATH, 12, "")
                 fs:SetPoint("LEFT", btn, "LEFT", 4, 0)
                 fs:SetJustifyH("LEFT")
-                fs:SetTextColor(0.9, 0.9, 0.9)
+                fs:SetTextColor(Brand.BODY_COLOR[1], Brand.BODY_COLOR[2], Brand.BODY_COLOR[3])
                 btn.text = fs
                 local hl = btn:CreateTexture(nil, "HIGHLIGHT")
                 hl:SetAllPoints()
-                hl:SetColorTexture(1, 1, 1, 0.15)
+                hl:SetColorTexture(Brand.HEADER_COLOR[1], Brand.HEADER_COLOR[2], Brand.HEADER_COLOR[3], 0.22)
                 rowBtns[i] = btn
             end
             btn.text:SetText(name)
@@ -695,7 +695,7 @@ local function BuildWindow()
     scrollTrack:SetPoint("BOTTOMRIGHT", scrollFrame, "BOTTOMRIGHT", 10, 0)
     scrollTrack:SetWidth(8)
     scrollTrack:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
-    scrollTrack:SetBackdropColor(1, 1, 1, 0.08)
+    scrollTrack:SetBackdropColor(Brand.TRACK_COLOR[1], Brand.TRACK_COLOR[2], Brand.TRACK_COLOR[3], Brand.TRACK_COLOR[4])
     scrollTrack:Hide()
 
     local scrollThumb = CreateFrame("Slider", nil, scrollTrack)
@@ -838,6 +838,21 @@ end
 function Tracker:IsShown()
     if frame and frame.keepHost then return frame:IsVisible() end
     return frame and frame:IsShown()
+end
+
+-- After a skin change: drops the window and everything built on it, so the next
+-- Show builds it again in the new colors (windows keep the colors they were
+-- built with). Returns whether it was open, so the caller can reopen it. Inside
+-- the Keep the window belongs to the Keep, so it is left alone there.
+function Tracker:ResetSkin()
+    if XalsKeep or not frame then return false end
+    local wasShown = frame:IsShown()
+    frame:Hide()
+    frame, scrollFrame, scrollChild, content, countText, searchBox = nil, nil, nil, nil, nil, nil
+    wipe(rows)
+    wipe(wipCards)
+    wipe(tabButtons)
+    return wasShown
 end
 
 -- Opens the tracker on the Zone tab, for the zone-alert icon's right-click.
